@@ -6,40 +6,62 @@ import {
   Patch,
   Param,
   Delete,
+  BadRequestException,
+  UseInterceptors,
+  ClassSerializerInterceptor,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
+import { validate as validateUUID } from 'uuid';
+import { UserEntity } from './users.entity';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  create(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.create(createUserDto);
+  @HttpCode(HttpStatus.CREATED)
+  async create(@Body() createUserDto: CreateUserDto): Promise<UserEntity> {
+    const user = await this.usersService.create(createUserDto);
+    return new UserEntity(user);
   }
 
   @Get()
-  findAll() {
-    return this.usersService.findAll();
+  async findAll(): Promise<UserEntity[]> {
+    const users = await this.usersService.findAll();
+    return users.map((user) => new UserEntity(user));
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
+  async findOne(@Param('id') id: string): Promise<UserEntity> {
+    if (!validateUUID(id)) {
+      throw new BadRequestException(`Invalid UUID: ${id}`);
+    }
+    const user = await this.usersService.findOne(id);
+    return new UserEntity(user);
   }
 
   @Patch(':id')
-  updatePassword(
+  async updatePassword(
     @Param('id') id: string,
-    @Body() updateUserPasswordDto: UpdateUserPasswordDto,
-  ) {
-    return this.usersService.updatePassword(id, updateUserPasswordDto);
+    @Body() dto: UpdateUserPasswordDto,
+  ): Promise<UserEntity> {
+    if (!validateUUID(id)) {
+      throw new BadRequestException(`Invalid UUID: ${id}`);
+    }
+    const user = await this.usersService.updatePassword(id, dto);
+    return new UserEntity(user);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(id);
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(@Param('id') id: string): Promise<void> {
+    if (!validateUUID(id)) {
+      throw new BadRequestException(`Invalid UUID: ${id}`);
+    }
+    await this.usersService.remove(id);
   }
 }
