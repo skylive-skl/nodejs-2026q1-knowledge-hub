@@ -7,8 +7,6 @@ import {
   Param,
   Delete,
   BadRequestException,
-  UseInterceptors,
-  ClassSerializerInterceptor,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -18,7 +16,7 @@ import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
 import { validate as validateUUID } from 'uuid';
 import { UserEntity } from './users.entity';
 
-@Controller('users')
+@Controller('user')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
