@@ -37,6 +37,7 @@ export class UsersController {
   @Get(':id')
   async findOne(@Param() params: UUIDDto): Promise<UserEntity> {
     const { id } = params;
+
     if (!validateUUID(id)) {
       throw new BadRequestException(`Invalid UUID: ${id}`);
     }

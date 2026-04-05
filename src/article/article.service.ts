@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { ArticleRepository } from './article.repository';
@@ -35,16 +35,20 @@ export class ArticleService {
   }
 
   findOne(id: string) {
-    return this.articleRepository.findById(id.toString());
+    const article = this.articleRepository.findById(id);
+    if (!article) {
+      throw new NotFoundException(`Article with ID ${id} not found`);
+    }
+    return article;
   }
 
   update(id: string, updateArticleDto: UpdateArticleDto) {
-    return this.articleRepository.update(id.toString(), updateArticleDto);
+    return this.articleRepository.update(id, updateArticleDto);
   }
 
   remove(id: string) {
     this.commentService.removeByArticle(id);
-    return this.articleRepository.delete(id.toString());
+    return this.articleRepository.delete(id);
   }
 
   nullifyCategory(categoryId: string) {

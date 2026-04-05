@@ -14,7 +14,7 @@ async function bootstrap() {
   const document = yaml.load(fileContent) as any;
   SwaggerModule.setup('api', app, document);
 
-  app.setGlobalPrefix('api');
+  // app.setGlobalPrefix('');
 
   app.useGlobalPipes(new ValidationPipe());
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));

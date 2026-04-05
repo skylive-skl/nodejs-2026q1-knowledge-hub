@@ -7,6 +7,8 @@ import {
   Param,
   Delete,
   Query,
+  HttpStatus,
+  HttpCode,
 } from '@nestjs/common';
 import { ArticleService } from './article.service';
 import { CreateArticleDto } from './dto/create-article.dto';
@@ -42,6 +44,7 @@ export class ArticleController {
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param() params: UUIDDto) {
     const { id } = params;
     return this.articleService.remove(id);

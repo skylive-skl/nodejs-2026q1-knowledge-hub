@@ -1,4 +1,4 @@
-import { IsEnum, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { ArticleStatus } from 'src/common/enums';
 
 export class CreateArticleDto {
@@ -7,8 +7,10 @@ export class CreateArticleDto {
   @IsString()
   content: string;
   @IsString()
+  @IsOptional()
   authorId: string;
   @IsString()
+  @IsOptional()
   categoryId: string;
   @IsString({ each: true })
   tags: string[];
