@@ -12,12 +12,16 @@ import * as bcrypt from 'bcrypt';
 import { UsersRepository } from './users.repository';
 import { ConfigService } from '@nestjs/config';
 import { UserRole } from 'src/common/enums';
+import { ArticleService } from 'src/article/article.service';
+import { CommentService } from 'src/comment/comment.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly usersRepo: UsersRepository,
     private readonly configService: ConfigService,
+    private readonly articleService: ArticleService,
+    private readonly commentService: CommentService,
   ) {}
 
   async findAll(): Promise<User[]> {
@@ -69,7 +73,8 @@ export class UsersService {
   async remove(id: string): Promise<boolean> {
     const user = this.usersRepo.findById(id);
     if (!user) throw new NotFoundException(`User with id ${id} not found`);
-
+    this.articleService.nullifyAuthor(id);
+    this.commentService.removeByAuthor(id);
     return this.usersRepo.delete(id);
   }
 }

@@ -3,10 +3,14 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CategoryRepository } from './category.repository';
 import { randomUUID } from 'node:crypto';
+import { ArticleService } from 'src/article/article.service';
 
 @Injectable()
 export class CategoryService {
-  constructor(private readonly categoryRepository: CategoryRepository) {}
+  constructor(
+    private readonly categoryRepository: CategoryRepository,
+    private readonly articleService: ArticleService,
+  ) {}
 
   create(dto: CreateCategoryDto) {
     const category = {
@@ -30,6 +34,7 @@ export class CategoryService {
   }
 
   remove(id: string) {
+    this.articleService.nullifyCategory(id);
     return this.categoryRepository.delete(id);
   }
 }

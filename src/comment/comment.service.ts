@@ -11,8 +11,8 @@ export class CommentService {
   create(dto: CreateCommentDto) {
     const now = Date.now();
     const comment = {
-      ...dto,
       id: randomUUID(),
+      ...dto,
       createdAt: now,
     };
     return this.commentRepository.create(comment);
@@ -32,5 +32,23 @@ export class CommentService {
 
   remove(id: string) {
     return this.commentRepository.delete(id);
+  }
+
+  removeByAuthor(authorId: string) {
+    const comments = this.commentRepository
+      .findAll()
+      .filter((comment) => comment.authorId === authorId);
+    comments.forEach((comment) => {
+      this.commentRepository.delete(comment.id);
+    });
+  }
+
+  removeByArticle(articleId: string) {
+    const comments = this.commentRepository
+      .findAll()
+      .filter((comment) => comment.articleId === articleId);
+    comments.forEach((comment) => {
+      this.commentRepository.delete(comment.id);
+    });
   }
 }

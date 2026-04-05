@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { ArticleService } from './article.service';
 import { CreateArticleDto } from './dto/create-article.dto';
@@ -23,8 +24,8 @@ export class ArticleController {
   }
 
   @Get()
-  findAll(@Param() params: SearchArticleDto) {
-    const { status, tag, categoryId } = params;
+  findAll(@Query() query: SearchArticleDto) {
+    const { status, tag, categoryId } = query;
     return this.articleService.findAll(status, tag, categoryId);
   }
 
