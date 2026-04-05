@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CategoryRepository } from './category.repository';
@@ -26,15 +26,21 @@ export class CategoryService {
   }
 
   findOne(id: string) {
-    return this.categoryRepository.findById(id);
+    const category = this.categoryRepository.findById(id);
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
+    }
+    return category;
   }
 
   update(id: string, dto: UpdateCategoryDto) {
+    this.findOne(id);
     return this.categoryRepository.update(id, dto);
   }
 
   remove(id: string) {
+    this.findOne(id);
     this.articleService.nullifyCategory(id);
-    return this.categoryRepository.delete(id);
+    this.categoryRepository.delete(id);
   }
 }

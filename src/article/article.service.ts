@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { ArticleRepository } from './article.repository';
@@ -11,6 +16,7 @@ import { CommentService } from 'src/comment/comment.service';
 export class ArticleService {
   constructor(
     private readonly articleRepository: ArticleRepository,
+    @Inject(forwardRef(() => CommentService))
     private readonly commentService: CommentService,
   ) {}
 
@@ -43,12 +49,21 @@ export class ArticleService {
   }
 
   update(id: string, updateArticleDto: UpdateArticleDto) {
-    return this.articleRepository.update(id, updateArticleDto);
+    const updatedArticle = this.articleRepository.update(id, updateArticleDto);
+    if (!updatedArticle) {
+      throw new NotFoundException(`Article with ID ${id} not found`);
+    }
+    return updatedArticle;
   }
 
   remove(id: string) {
+    this.findOne(id);
     this.commentService.removeByArticle(id);
-    return this.articleRepository.delete(id);
+    this.articleRepository.delete(id);
+  }
+
+  exists(id: string): boolean {
+    return this.articleRepository.findById(id) !== undefined;
   }
 
   nullifyCategory(categoryId: string) {

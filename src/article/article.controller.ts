@@ -3,12 +3,12 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   Query,
   HttpStatus,
   HttpCode,
+  Put,
 } from '@nestjs/common';
 import { ArticleService } from './article.service';
 import { CreateArticleDto } from './dto/create-article.dto';
@@ -37,7 +37,7 @@ export class ArticleController {
     return this.articleService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   update(@Param() params: UUIDDto, @Body() updateArticleDto: UpdateArticleDto) {
     const { id } = params;
     return this.articleService.update(id, updateArticleDto);

@@ -3,7 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
+  Put,
   Param,
   Delete,
   BadRequestException,
@@ -37,23 +37,16 @@ export class UsersController {
   @Get(':id')
   async findOne(@Param() params: UUIDDto): Promise<UserEntity> {
     const { id } = params;
-
-    if (!validateUUID(id)) {
-      throw new BadRequestException(`Invalid UUID: ${id}`);
-    }
     const user = await this.usersService.findOne(id);
     return new UserEntity(user);
   }
 
-  @Patch(':id')
+  @Put(':id')
   async updatePassword(
     @Param() params: UUIDDto,
     @Body() dto: UpdateUserPasswordDto,
   ): Promise<UserEntity> {
     const { id } = params;
-    if (!validateUUID(id)) {
-      throw new BadRequestException(`Invalid UUID: ${id}`);
-    }
     const user = await this.usersService.updatePassword(id, dto);
     return new UserEntity(user);
   }

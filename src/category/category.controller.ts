@@ -3,9 +3,11 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
+  Put,
+  HttpStatus,
+  HttpCode,
 } from '@nestjs/common';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -32,13 +34,14 @@ export class CategoryController {
     return this.categoryService.findOne(id);
   }
 
-  @Patch(':id')
+  @Put(':id')
   update(@Param() params: UUIDDto, @Body() dto: UpdateCategoryDto) {
     const { id } = params;
     return this.categoryService.update(id, dto);
   }
 
   @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param() params: UUIDDto) {
     const { id } = params;
     return this.categoryService.remove(id);
