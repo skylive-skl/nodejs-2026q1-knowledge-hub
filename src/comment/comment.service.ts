@@ -18,8 +18,8 @@ export class CommentService {
     return this.commentRepository.create(comment);
   }
 
-  findAll() {
-    return this.commentRepository.findAll();
+  findAll(articleId: string) {
+    return this.commentRepository.findAll(articleId);
   }
 
   findOne(id: string) {

@@ -3,8 +3,14 @@ import { Comment } from 'src/common/interfaces';
 export class CommentRepository {
   private readonly comments = new Map<string, Comment>();
 
-  findAll(): Comment[] {
-    return Array.from(this.comments.values());
+  findAll(articleId?: string): Comment[] {
+    if (!articleId) {
+      return Array.from(this.comments.values());
+    }
+
+    return Array.from(this.comments.values()).filter(
+      (comment) => comment.articleId === articleId,
+    );
   }
 
   findById(id: string): Comment | undefined {

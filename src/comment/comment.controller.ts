@@ -6,11 +6,13 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { CommentService } from './comment.service';
 import { CreateCommentDto } from './dto/create-comment.dto';
 import { UpdateCommentDto } from './dto/update-comment.dto';
 import { UUIDDto } from 'src/common/dto/uuid.dto';
+import { SearchCommentDto } from './dto/search-comment.dto';
 
 @Controller('comment')
 export class CommentController {
@@ -22,8 +24,8 @@ export class CommentController {
   }
 
   @Get()
-  findAll() {
-    return this.commentService.findAll();
+  findAll(@Query() query: SearchCommentDto) {
+    return this.commentService.findAll(query.articleId);
   }
 
   @Get(':id')
