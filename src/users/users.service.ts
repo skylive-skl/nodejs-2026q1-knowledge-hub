@@ -14,6 +14,8 @@ import { ConfigService } from '@nestjs/config';
 import { UserRole } from 'src/common/enums';
 import { ArticleService } from 'src/article/article.service';
 import { CommentService } from 'src/comment/comment.service';
+import { SearchUserDto } from './dto/search-user.dto';
+import { paginate, shouldPaginate, sortItems } from 'src/common/pagination';
 
 @Injectable()
 export class UsersService {
@@ -24,8 +26,20 @@ export class UsersService {
     private readonly commentService: CommentService,
   ) {}
 
-  async findAll(): Promise<User[]> {
-    return this.usersRepo.findAll();
+  async findAll(query: SearchUserDto = {}): Promise<any> {
+    const { sortBy, order, page, limit } = query;
+    const sortedUsers = sortItems(this.usersRepo.findAll(), sortBy, order, [
+      'login',
+      'role',
+      'createdAt',
+      'updatedAt',
+    ]);
+
+    if (shouldPaginate(page, limit)) {
+      return paginate(sortedUsers, page, limit);
+    }
+
+    return sortedUsers;
   }
 
   async findOne(id: string): Promise<User | undefined> {

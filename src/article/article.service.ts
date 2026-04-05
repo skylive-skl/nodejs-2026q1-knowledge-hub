@@ -11,6 +11,8 @@ import { Article } from 'src/common/interfaces';
 import { v4 as uuidv4 } from 'uuid';
 import { ArticleStatus } from 'src/common/enums';
 import { CommentService } from 'src/comment/comment.service';
+import { SearchArticleDto } from './dto/search-article.dto';
+import { paginate, shouldPaginate, sortItems } from 'src/common/pagination';
 
 @Injectable()
 export class ArticleService {
@@ -36,8 +38,25 @@ export class ArticleService {
     return this.articleRepository.create(article);
   }
 
-  findAll(status: string, tag: string, categoryId: string) {
-    return this.articleRepository.findAll(status, tag, categoryId);
+  findAll(query: SearchArticleDto) {
+    const { status, tag, categoryId, sortBy, order, page, limit } = query;
+    const filteredArticles = this.articleRepository.findAll(
+      status,
+      tag,
+      categoryId,
+    );
+    const sortedArticles = sortItems(filteredArticles, sortBy, order, [
+      'title',
+      'status',
+      'createdAt',
+      'updatedAt',
+    ]);
+
+    if (shouldPaginate(page, limit)) {
+      return paginate(sortedArticles, page, limit);
+    }
+
+    return sortedArticles;
   }
 
   findOne(id: string) {

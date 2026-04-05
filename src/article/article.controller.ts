@@ -27,8 +27,7 @@ export class ArticleController {
 
   @Get()
   findAll(@Query() query: SearchArticleDto) {
-    const { status, tag, categoryId } = query;
-    return this.articleService.findAll(status, tag, categoryId);
+    return this.articleService.findAll(query);
   }
 
   @Get(':id')

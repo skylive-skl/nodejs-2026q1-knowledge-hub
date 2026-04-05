@@ -9,6 +9,7 @@ import {
   BadRequestException,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -16,6 +17,7 @@ import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
 import { validate as validateUUID } from 'uuid';
 import { UserEntity } from './users.entity';
 import { UUIDDto } from 'src/common/dto/uuid.dto';
+import { SearchUserDto } from './dto/search-user.dto';
 
 @Controller('user')
 export class UsersController {
@@ -29,9 +31,17 @@ export class UsersController {
   }
 
   @Get()
-  async findAll(): Promise<UserEntity[]> {
-    const users = await this.usersService.findAll();
-    return users.map((user) => new UserEntity(user));
+  async findAll(@Query() query: SearchUserDto): Promise<any> {
+    const users = await this.usersService.findAll(query);
+
+    if (Array.isArray(users)) {
+      return users.map((user) => new UserEntity(user));
+    }
+
+    return {
+      ...users,
+      data: users.data.map((user) => new UserEntity(user)),
+    };
   }
 
   @Get(':id')

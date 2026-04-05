@@ -4,6 +4,8 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CategoryRepository } from './category.repository';
 import { randomUUID } from 'node:crypto';
 import { ArticleService } from 'src/article/article.service';
+import { SearchCategoryDto } from './dto/search-category.dto';
+import { paginate, shouldPaginate, sortItems } from 'src/common/pagination';
 
 @Injectable()
 export class CategoryService {
@@ -21,8 +23,20 @@ export class CategoryService {
     return this.categoryRepository.create(category);
   }
 
-  findAll() {
-    return this.categoryRepository.findAll();
+  findAll(query: SearchCategoryDto) {
+    const { sortBy, order, page, limit } = query;
+    const sortedCategories = sortItems(
+      this.categoryRepository.findAll(),
+      sortBy,
+      order,
+      ['name', 'description'],
+    );
+
+    if (shouldPaginate(page, limit)) {
+      return paginate(sortedCategories, page, limit);
+    }
+
+    return sortedCategories;
   }
 
   findOne(id: string) {

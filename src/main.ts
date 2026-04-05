@@ -12,11 +12,17 @@ async function bootstrap() {
   const yamlPath = join(process.cwd(), '/doc/api.yaml');
   const fileContent = readFileSync(yamlPath, 'utf8');
   const document = yaml.load(fileContent) as any;
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('doc', app, document);
 
   // app.setGlobalPrefix('');
 
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
   await app.listen(process.env.PORT || 4000);
 }

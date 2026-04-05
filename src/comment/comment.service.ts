@@ -10,6 +10,8 @@ import { UpdateCommentDto } from './dto/update-comment.dto';
 import { CommentRepository } from './comment.repository';
 import { randomUUID } from 'crypto';
 import { ArticleService } from 'src/article/article.service';
+import { SearchCommentDto } from './dto/search-comment.dto';
+import { paginate, shouldPaginate, sortItems } from 'src/common/pagination';
 
 @Injectable()
 export class CommentService {
@@ -35,8 +37,20 @@ export class CommentService {
     return this.commentRepository.create(comment);
   }
 
-  findAll(articleId: string) {
-    return this.commentRepository.findAll(articleId);
+  findAll(query: SearchCommentDto = {}) {
+    const { articleId, sortBy, order, page, limit } = query;
+    const sortedComments = sortItems(
+      this.commentRepository.findAll(articleId),
+      sortBy,
+      order,
+      ['content', 'createdAt'],
+    );
+
+    if (shouldPaginate(page, limit)) {
+      return paginate(sortedComments, page, limit);
+    }
+
+    return sortedComments;
   }
 
   findOne(id: string) {

@@ -8,11 +8,13 @@ import {
   Put,
   HttpStatus,
   HttpCode,
+  Query,
 } from '@nestjs/common';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { UUIDDto } from 'src/common/dto/uuid.dto';
+import { SearchCategoryDto } from './dto/search-category.dto';
 
 @Controller('category')
 export class CategoryController {
@@ -24,8 +26,8 @@ export class CategoryController {
   }
 
   @Get()
-  findAll() {
-    return this.categoryService.findAll();
+  findAll(@Query() query: SearchCategoryDto) {
+    return this.categoryService.findAll(query);
   }
 
   @Get(':id')
