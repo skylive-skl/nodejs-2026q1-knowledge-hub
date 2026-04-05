@@ -27,7 +27,7 @@ export class UsersService {
   async findOne(id: string): Promise<User | undefined> {
     const user = this.usersRepo.findById(id);
     if (!user) throw new NotFoundException(`User with id ${id} not found`);
-    return this.usersRepo.findById(id);
+    return user;
   }
 
   async create(dto: CreateUserDto): Promise<User> {

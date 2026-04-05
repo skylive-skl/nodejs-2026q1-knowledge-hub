@@ -15,6 +15,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
 import { validate as validateUUID } from 'uuid';
 import { UserEntity } from './users.entity';
+import { UUIDDto } from 'src/common/dto/uuid.dto';
 
 @Controller('user')
 export class UsersController {
@@ -34,7 +35,8 @@ export class UsersController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string): Promise<UserEntity> {
+  async findOne(@Param() params: UUIDDto): Promise<UserEntity> {
+    const { id } = params;
     if (!validateUUID(id)) {
       throw new BadRequestException(`Invalid UUID: ${id}`);
     }
@@ -44,9 +46,10 @@ export class UsersController {
 
   @Patch(':id')
   async updatePassword(
-    @Param('id') id: string,
+    @Param() params: UUIDDto,
     @Body() dto: UpdateUserPasswordDto,
   ): Promise<UserEntity> {
+    const { id } = params;
     if (!validateUUID(id)) {
       throw new BadRequestException(`Invalid UUID: ${id}`);
     }
@@ -56,7 +59,8 @@ export class UsersController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string): Promise<void> {
+  async remove(@Param() params: UUIDDto): Promise<void> {
+    const { id } = params;
     if (!validateUUID(id)) {
       throw new BadRequestException(`Invalid UUID: ${id}`);
     }
