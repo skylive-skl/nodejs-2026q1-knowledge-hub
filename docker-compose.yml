@@ -48,6 +48,19 @@ services:
     networks:
       - knowledge-hub-network
 
+  adminer:
+    image: adminer:latest
+    container_name: knowledge-hub-adminer
+    profiles:
+      - debug
+    ports:
+      - '8080:8080'
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - knowledge-hub-network
 
 networks:
   knowledge-hub-network:
