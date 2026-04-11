@@ -17,10 +17,10 @@ ENV NODE_ENV=production
 
 COPY package*.json ./
 RUN apk add --no-cache libstdc++ \
-	&& apk add --no-cache --virtual .node-gyp python3 make g++ \
-	&& npm ci --omit=dev \
-	&& npm cache clean --force \
-	&& apk del .node-gyp
+  && apk add --no-cache --virtual .node-gyp python3 make g++ \
+  && npm ci --omit=dev \
+  && npm cache clean --force \
+  && apk del .node-gyp
 
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/doc ./doc
