@@ -1,5 +1,11 @@
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
+
+// Prisma returns BigInt for BigInt columns; convert to Number for JSON serialization.
+// Date.now() values (~1.7e12) are well within Number.MAX_SAFE_INTEGER (~9e15).
+(BigInt.prototype as any).toJSON = function () {
+  return Number(this);
+};
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { join } from 'node:path';
 import * as yaml from 'js-yaml';

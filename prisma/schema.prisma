@@ -8,15 +8,15 @@ datasource db {
 }
 
 enum UserRole {
-  ADMIN
-  EDITOR
-  VIEWER
+  admin
+  editor
+  viewer
 }
 
 enum ArticleStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
+  draft
+  published
+  archived
 }
 
 model User {

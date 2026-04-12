@@ -1,8 +1,8 @@
 -- CreateEnum
-CREATE TYPE "public"."UserRole" AS ENUM ('ADMIN', 'EDITOR', 'VIEWER');
+CREATE TYPE "public"."UserRole" AS ENUM ('admin', 'editor', 'viewer');
 
 -- CreateEnum
-CREATE TYPE "public"."ArticleStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'ARCHIVED');
+CREATE TYPE "public"."ArticleStatus" AS ENUM ('draft', 'published', 'archived');
 
 -- CreateTable
 CREATE TABLE "public"."User" (
