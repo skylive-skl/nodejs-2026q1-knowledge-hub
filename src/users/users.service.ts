@@ -115,8 +115,10 @@ export class UsersService {
   async remove(id: string): Promise<boolean> {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException(`User with id ${id} not found`);
-    this.articleService.nullifyAuthor(id);
-    this.commentService.removeByAuthor(id);
+
+    await this.articleService.nullifyAuthor(id);
+    await this.commentService.removeByAuthor(id);
+
     await this.prisma.user.delete({ where: { id } });
     return true;
   }

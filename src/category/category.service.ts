@@ -26,12 +26,10 @@ export class CategoryService {
     const { sortBy, order, page, limit } = query;
     const categories = await this.prisma.category.findMany();
 
-    const sortedCategories = sortItems(
-      categories,
-      sortBy,
-      order,
-      ['name', 'description'],
-    );
+    const sortedCategories = sortItems(categories, sortBy, order, [
+      'name',
+      'description',
+    ]);
 
     if (shouldPaginate(page, limit)) {
       return paginate(sortedCategories, page, limit);
@@ -58,7 +56,7 @@ export class CategoryService {
 
   async remove(id: string) {
     await this.findOne(id);
-    this.articleService.nullifyCategory(id);
+    await this.articleService.nullifyCategory(id);
     await this.prisma.category.delete({ where: { id } });
   }
 }

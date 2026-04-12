@@ -37,7 +37,7 @@ export class CommentService {
   }
 
   async create(dto: CreateCommentDto) {
-    if (!this.articleService.exists(dto.articleId)) {
+    if (!(await this.articleService.exists(dto.articleId))) {
       throw new UnprocessableEntityException(
         `Article with ID ${dto.articleId} does not exist`,
       );
@@ -61,14 +61,14 @@ export class CommentService {
       where: articleId ? { articleId } : undefined,
     });
 
-    const normalizedComments = comments.map((comment) => this.toComment(comment));
-
-    const sortedComments = sortItems(
-      normalizedComments,
-      sortBy,
-      order,
-      ['content', 'createdAt'],
+    const normalizedComments = comments.map((comment) =>
+      this.toComment(comment),
     );
+
+    const sortedComments = sortItems(normalizedComments, sortBy, order, [
+      'content',
+      'createdAt',
+    ]);
 
     if (shouldPaginate(page, limit)) {
       return paginate(sortedComments, page, limit);
