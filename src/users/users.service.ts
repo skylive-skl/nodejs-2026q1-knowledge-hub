@@ -6,29 +6,48 @@ import {
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
 import { User } from 'src/common/interfaces';
-
-import { randomUUID } from 'crypto';
 import * as bcrypt from 'bcrypt';
-import { UsersRepository } from './users.repository';
 import { ConfigService } from '@nestjs/config';
 import { UserRole } from 'src/common/enums';
 import { ArticleService } from 'src/article/article.service';
 import { CommentService } from 'src/comment/comment.service';
 import { SearchUserDto } from './dto/search-user.dto';
 import { paginate, shouldPaginate, sortItems } from 'src/common/pagination';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
 export class UsersService {
   constructor(
-    private readonly usersRepo: UsersRepository,
+    private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly articleService: ArticleService,
     private readonly commentService: CommentService,
   ) {}
 
+  private toUser(entity: {
+    id: string;
+    login: string;
+    password: string;
+    role: string;
+    createdAt: bigint;
+    updatedAt: bigint;
+  }): User {
+    return {
+      id: entity.id,
+      login: entity.login,
+      password: entity.password,
+      role: entity.role as UserRole,
+      createdAt: Number(entity.createdAt),
+      updatedAt: Number(entity.updatedAt),
+    };
+  }
+
   async findAll(query: SearchUserDto = {}): Promise<any> {
     const { sortBy, order, page, limit } = query;
-    const sortedUsers = sortItems(this.usersRepo.findAll(), sortBy, order, [
+    const users = await this.prisma.user.findMany();
+    const normalizedUsers = users.map((user) => this.toUser(user));
+
+    const sortedUsers = sortItems(normalizedUsers, sortBy, order, [
       'login',
       'role',
       'createdAt',
@@ -43,31 +62,34 @@ export class UsersService {
   }
 
   async findOne(id: string): Promise<User | undefined> {
-    const user = this.usersRepo.findById(id);
+    const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException(`User with id ${id} not found`);
-    return user;
+    return this.toUser(user);
   }
 
   async create(dto: CreateUserDto): Promise<User> {
     const salt = this.configService.get('CRYPT_SALT');
     const hash = await bcrypt.hash(dto.password, +salt);
-    const now = Date.now();
-    const user: User = {
-      id: randomUUID(),
-      login: dto.login,
-      password: hash,
-      role: dto.role || UserRole.VIEWER,
-      createdAt: now,
-      updatedAt: now,
-    };
-    return this.usersRepo.create(user);
+    const now = BigInt(Date.now());
+
+    const user = await this.prisma.user.create({
+      data: {
+        login: dto.login,
+        password: hash,
+        role: dto.role || UserRole.VIEWER,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+
+    return this.toUser(user);
   }
 
   async updatePassword(
     id: string,
     dto: UpdateUserPasswordDto,
   ): Promise<User | undefined> {
-    const user = this.usersRepo.findById(id);
+    const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException(`User with id ${id} not found`);
 
     const isOldPassword = await bcrypt.compare(dto.oldPassword, user.password);
@@ -81,14 +103,21 @@ export class UsersService {
 
     const salt = this.configService.get('CRYPT_SALT');
     const hash = await bcrypt.hash(dto.newPassword, +salt);
-    return this.usersRepo.update(id, { password: hash, updatedAt: Date.now() });
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: { password: hash, updatedAt: BigInt(Date.now()) },
+    });
+
+    return this.toUser(updatedUser);
   }
 
   async remove(id: string): Promise<boolean> {
-    const user = this.usersRepo.findById(id);
+    const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException(`User with id ${id} not found`);
     this.articleService.nullifyAuthor(id);
     this.commentService.removeByAuthor(id);
-    return this.usersRepo.delete(id);
+    await this.prisma.user.delete({ where: { id } });
+    return true;
   }
 }
