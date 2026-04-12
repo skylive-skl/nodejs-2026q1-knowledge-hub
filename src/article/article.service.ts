@@ -176,18 +176,4 @@ export class ArticleService {
 
     return !!article;
   }
-
-  async nullifyCategory(categoryId: string) {
-    await this.prisma.article.updateMany({
-      where: { categoryId },
-      data: { categoryId: null, updatedAt: BigInt(Date.now()) },
-    });
-  }
-
-  async nullifyAuthor(authorId: string) {
-    await this.prisma.article.updateMany({
-      where: { authorId },
-      data: { authorId: null, updatedAt: BigInt(Date.now()) },
-    });
-  }
 }

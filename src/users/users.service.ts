@@ -116,7 +116,6 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException(`User with id ${id} not found`);
 
-    await this.articleService.nullifyAuthor(id);
     await this.commentService.removeByAuthor(id);
 
     await this.prisma.user.delete({ where: { id } });

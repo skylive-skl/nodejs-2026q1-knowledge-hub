@@ -56,7 +56,6 @@ export class CategoryService {
 
   async remove(id: string) {
     await this.findOne(id);
-    await this.articleService.nullifyCategory(id);
     await this.prisma.category.delete({ where: { id } });
   }
 }
