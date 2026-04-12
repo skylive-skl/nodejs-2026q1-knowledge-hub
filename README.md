@@ -61,6 +61,32 @@ After startup:
 
 Current stage note: PostgreSQL is prepared as containerized infrastructure for the next assignment, while application data storage remains in-memory in this stage.
 
+## Prisma and Database
+
+Generate Prisma Client:
+
+```bash
+npm run prisma:generate
+```
+
+Create and apply migrations:
+
+```bash
+npm run prisma:migrate:dev -- --name init
+```
+
+Seed database with initial data:
+
+```bash
+npx prisma db seed
+```
+
+Open Prisma Studio:
+
+```bash
+npm run prisma:studio
+```
+
 ## Docker Hub image
 
 Published image link:

@@ -90,7 +90,9 @@ export class ArticleService {
       },
     });
 
-    const normalizedArticles = articles.map((article) => this.toArticle(article));
+    const normalizedArticles = articles.map((article) =>
+      this.toArticle(article),
+    );
 
     const sortedArticles = sortItems(normalizedArticles, sortBy, order, [
       'title',
