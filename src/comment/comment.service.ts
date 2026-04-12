@@ -100,12 +100,4 @@ export class CommentService {
     await this.findOne(id);
     await this.prisma.comment.delete({ where: { id } });
   }
-
-  async removeByAuthor(authorId: string) {
-    await this.prisma.comment.deleteMany({ where: { authorId } });
-  }
-
-  async removeByArticle(articleId: string) {
-    await this.prisma.comment.deleteMany({ where: { articleId } });
-  }
 }

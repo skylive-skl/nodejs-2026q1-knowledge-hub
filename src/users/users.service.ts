@@ -9,8 +9,6 @@ import { User } from 'src/common/interfaces';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { UserRole } from 'src/common/enums';
-import { ArticleService } from 'src/article/article.service';
-import { CommentService } from 'src/comment/comment.service';
 import { SearchUserDto } from './dto/search-user.dto';
 import { paginate, shouldPaginate, sortItems } from 'src/common/pagination';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -20,8 +18,6 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-    private readonly articleService: ArticleService,
-    private readonly commentService: CommentService,
   ) {}
 
   private toUser(entity: {
@@ -115,8 +111,6 @@ export class UsersService {
   async remove(id: string): Promise<boolean> {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException(`User with id ${id} not found`);
-
-    await this.commentService.removeByAuthor(id);
 
     await this.prisma.user.delete({ where: { id } });
     return true;
