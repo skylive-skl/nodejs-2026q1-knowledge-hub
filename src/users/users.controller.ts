@@ -20,8 +20,12 @@ import { UserEntity } from './users.entity';
 import { UUIDDto } from 'src/common/dto/uuid.dto';
 import { SearchUserDto } from './dto/search-user.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { Roles } from 'src/auth/decorators/roles.decorator';
+import { UserRole } from 'src/common/enums';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN)
 @Controller('user')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}

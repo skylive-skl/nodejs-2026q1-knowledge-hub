@@ -17,13 +17,17 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 import { UUIDDto } from 'src/common/dto/uuid.dto';
 import { SearchCategoryDto } from './dto/search-category.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { Roles } from 'src/auth/decorators/roles.decorator';
+import { UserRole } from 'src/common/enums';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('category')
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
   @Post()
+  @Roles(UserRole.ADMIN)
   create(@Body() createCategoryDto: CreateCategoryDto) {
     return this.categoryService.create(createCategoryDto);
   }
@@ -39,12 +43,14 @@ export class CategoryController {
     return this.categoryService.findOne(id);
   }
 
+  @Roles(UserRole.ADMIN)
   @Put(':id')
   update(@Param() params: UUIDDto, @Body() dto: UpdateCategoryDto) {
     const { id } = params;
     return this.categoryService.update(id, dto);
   }
 
+  @Roles(UserRole.ADMIN)
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param() params: UUIDDto) {
