@@ -59,7 +59,7 @@ After startup:
 - PostgreSQL: localhost:5432
 - Adminer (debug profile): http://localhost:8080/
 
-Current stage note: PostgreSQL is prepared as containerized infrastructure for the next assignment, while application data storage remains in-memory in this stage.
+Application data is stored in PostgreSQL via Prisma.
 
 ## Prisma and Database
 
@@ -132,6 +132,22 @@ To run RBAC (role-based access control) tests
 ```
 npm run test:rbac
 ```
+
+### Auth/RBAC test mode notes
+
+Auth-related e2e suites in this project call a running API instance on localhost:4000.
+
+Before running auth/refresh/rbac tests, start the API with auth test mode enabled:
+
+```bash
+TEST_MODE=auth DISABLE_THROTTLE_FOR_TESTS=true npm start
+```
+
+Then run tests in a separate terminal.
+
+Notes:
+- TEST_MODE=auth enables authorization behavior expected by e2e suites.
+- DISABLE_THROTTLE_FOR_TESTS=true disables auth endpoint rate limiting only for test runs to avoid flaky 429 errors.
 
 ### Auto-fix and format
 

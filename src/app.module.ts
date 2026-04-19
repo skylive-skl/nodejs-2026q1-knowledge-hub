@@ -15,7 +15,13 @@ import { AuthModule } from './auth/auth.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 10 }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 10,
+        skipIf: () => process.env.DISABLE_THROTTLE_FOR_TESTS === 'true',
+      },
+    ]),
     PrismaModule,
     UsersModule,
     ArticleModule,

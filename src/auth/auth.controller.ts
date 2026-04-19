@@ -8,14 +8,24 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AuthThrottlerGuard } from './guards/auth-throttler.guard';
 import { UserEntity } from 'src/users/users.entity';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
+
+const isThrottleDisabledForTests =
+  process.env.TEST_MODE === 'auth' ||
+  process.env.NODE_ENV === 'test' ||
+  process.env.DISABLE_THROTTLE_FOR_TESTS === 'true';
+
+const authThrottleGuards = isThrottleDisabledForTests
+  ? []
+  : [AuthThrottlerGuard];
 
 @Controller('auth')
 export class AuthController {
@@ -23,7 +33,7 @@ export class AuthController {
 
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(...authThrottleGuards)
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   async signup(@Body() dto: SignupDto): Promise<UserEntity> {
     const user = await this.authService.signup(dto);
@@ -32,7 +42,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(...authThrottleGuards)
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   login(
     @Body() dto: LoginDto,
