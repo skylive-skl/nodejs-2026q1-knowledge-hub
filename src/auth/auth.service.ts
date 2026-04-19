@@ -27,6 +27,17 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
+  private async generateTokenPair(payload: JwtPayload) {
+    const accessToken = await this.jwtService.signAsync(payload);
+
+    const refreshToken = await this.jwtService.signAsync(payload, {
+      secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+      expiresIn: this.configService.getOrThrow<string>('JWT_REFRESH_TTL'),
+    });
+
+    return { accessToken, refreshToken };
+  }
+
   async signup(dto: SignupDto) {
     const existingUser = await this.prisma.user.findUnique({
       where: { login: dto.login },
@@ -64,16 +75,35 @@ export class AuthService {
       role: user.role as UserRole,
     };
 
-    const accessToken = await this.jwtService.signAsync(payload, {
-      secret: this.configService.getOrThrow<string>('JWT_SECRET'),
-      expiresIn: this.configService.getOrThrow<string>('JWT_ACCESS_TTL'),
+    return this.generateTokenPair(payload);
+  }
+
+  async refresh(refreshToken: string) {
+    let payload: JwtPayload;
+
+    try {
+      payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+      });
+    } catch {
+      throw new ForbiddenException('Invalid or expired refresh token');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: { id: true, login: true, role: true },
     });
 
-    const refreshToken = await this.jwtService.signAsync(payload, {
-      secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-      expiresIn: this.configService.getOrThrow<string>('JWT_REFRESH_TTL'),
-    });
+    if (!user) {
+      throw new ForbiddenException('Invalid or expired refresh token');
+    }
 
-    return { accessToken, refreshToken };
+    const freshPayload: JwtPayload = {
+      userId: user.id,
+      login: user.login,
+      role: user.role as UserRole,
+    };
+
+    return this.generateTokenPair(freshPayload);
   }
 }
