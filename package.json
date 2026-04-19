@@ -8,6 +8,9 @@
   "engines": {
     "node": ">=24.10.0"
   },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "nest build",
