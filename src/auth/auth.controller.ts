@@ -4,8 +4,13 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Req,
   UnauthorizedException,
+  UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { Request } from 'express';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { UserEntity } from 'src/users/users.entity';
 import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
@@ -18,6 +23,8 @@ export class AuthController {
 
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   async signup(@Body() dto: SignupDto): Promise<UserEntity> {
     const user = await this.authService.signup(dto);
     return new UserEntity(user);
@@ -25,6 +32,8 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   login(
     @Body() dto: LoginDto,
   ): Promise<{ accessToken: string; refreshToken: string }> {
@@ -41,5 +50,20 @@ export class AuthController {
     }
 
     return this.authService.refresh(dto.refreshToken);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async logout(
+    @Req() req: Request,
+    @Body() dto: RefreshDto,
+  ): Promise<void> {
+    const userId = (req.user as { userId: string }).userId;
+    if (!dto?.refreshToken) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
+
+    await this.authService.logout(userId, dto.refreshToken);
   }
 }
