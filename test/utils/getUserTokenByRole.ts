@@ -1,14 +1,18 @@
-import { authRoutes, usersRoutes } from '../endpoints';
+import { authRoutes } from '../endpoints';
+import promoteUserRole from './promoteUserRole';
+import { randomUUID } from 'crypto';
 
 const getUserTokenByRole = async (
   request,
   role: 'admin' | 'editor' | 'viewer',
-  adminHeaders: Record<string, string>,
+  // kept for signature compatibility with existing RBAC specs; unused now
+  // because role promotion happens directly via Prisma
+  _adminHeaders?: Record<string, string>,
 ) => {
-  const login = `TEST_RBAC_${role.toUpperCase()}_${Date.now()}`;
+  const login = `TEST_RBAC_${role.toUpperCase()}_${Date.now()}_${randomUUID().slice(0, 8)}`;
   const password = 'TestPass123!';
 
-  // Create user via signup
+  // Create user via signup (defaults to viewer)
   const signupResponse = await request
     .post(authRoutes.signup)
     .set({ Accept: 'application/json' })
@@ -17,22 +21,16 @@ const getUserTokenByRole = async (
   const { id: userId } = signupResponse.body;
 
   if (!userId) {
-    throw new Error(`Failed to create ${role} user`);
+    throw new Error(
+      `Failed to create ${role} user: status=${signupResponse.status}, body=${JSON.stringify(signupResponse.body)}`,
+    );
   }
 
-  // If role is not 'viewer' (default), update user role via admin
   if (role !== 'viewer') {
-    const updateRoleResponse = await request
-      .put(usersRoutes.update(userId))
-      .set(adminHeaders)
-      .send({ role });
-
-    if (updateRoleResponse.statusCode >= 400) {
-      throw new Error(`Failed to set role ${role} for user ${userId}`);
-    }
+    await promoteUserRole(userId, role);
   }
 
-  // Login to get tokens
+  // Login AFTER promotion so JWT payload carries the correct role
   const loginResponse = await request
     .post(authRoutes.login)
     .set({ Accept: 'application/json' })
@@ -41,7 +39,9 @@ const getUserTokenByRole = async (
   const { accessToken } = loginResponse.body;
 
   if (!accessToken) {
-    throw new Error(`Failed to login as ${role} user`);
+    throw new Error(
+      `Failed to login as ${role} user: status=${loginResponse.status}, body=${JSON.stringify(loginResponse.body)}`,
+    );
   }
 
   return {
