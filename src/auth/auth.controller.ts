@@ -55,10 +55,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  async logout(
-    @Req() req: Request,
-    @Body() dto: RefreshDto,
-  ): Promise<void> {
+  async logout(@Req() req: Request, @Body() dto: RefreshDto): Promise<void> {
     const userId = (req.user as { userId: string }).userId;
     if (!dto?.refreshToken) {
       throw new UnauthorizedException('Refresh token is required');
