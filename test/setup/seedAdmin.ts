@@ -11,15 +11,17 @@ export default async function globalSetup(): Promise<void> {
     adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
   });
   const hashedPassword = await bcrypt.hash(SEED_ADMIN_PASSWORD, 10);
-
+  const now = Date.now();
   try {
     await prisma.user.upsert({
       where: { login: SEED_ADMIN_LOGIN },
-      update: { role: 'admin', password: hashedPassword },
+      update: { role: 'admin', password: hashedPassword, updatedAt: now },
       create: {
         login: SEED_ADMIN_LOGIN,
         password: hashedPassword,
         role: 'admin',
+        createdAt: now,
+        updatedAt: now,
       },
     });
   } finally {
