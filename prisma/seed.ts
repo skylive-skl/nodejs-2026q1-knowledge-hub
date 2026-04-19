@@ -7,6 +7,21 @@ async function main() {
   const now = BigInt(Date.now());
   const salt = 10;
 
+  const findOrCreateCategory = async (name: string, description: string) => {
+    const existingCategory = await prisma.category.findFirst({
+      where: { name },
+      orderBy: { id: 'asc' },
+    });
+
+    if (existingCategory) {
+      return existingCategory;
+    }
+
+    return prisma.category.create({
+      data: { name, description },
+    });
+  };
+
   // ── Users ───────────────────────────────────────────────────────────────────
   const admin = await prisma.user.upsert({
     where: { login: 'admin' },
@@ -33,32 +48,20 @@ async function main() {
   });
 
   // ── Categories ───────────────────────────────────────────────────────────────
-  const categoryDev = await prisma.category.upsert({
-    where: { name: 'Development' },
-    update: {},
-    create: {
-      name: 'Development',
-      description: 'Articles about software development',
-    },
-  });
+  const categoryDev = await findOrCreateCategory(
+    'Development',
+    'Articles about software development',
+  );
 
-  const categoryTech = await prisma.category.upsert({
-    where: { name: 'Technology' },
-    update: {},
-    create: {
-      name: 'Technology',
-      description: 'Articles about technology trends',
-    },
-  });
+  const categoryTech = await findOrCreateCategory(
+    'Technology',
+    'Articles about technology trends',
+  );
 
-  const categoryScience = await prisma.category.upsert({
-    where: { name: 'Science' },
-    update: {},
-    create: {
-      name: 'Science',
-      description: 'Articles about scientific discoveries',
-    },
-  });
+  const categoryScience = await findOrCreateCategory(
+    'Science',
+    'Articles about scientific discoveries',
+  );
 
   // ── Tags ─────────────────────────────────────────────────────────────────────
   const tagNames = ['nodejs', 'typescript', 'nestjs', 'prisma', 'postgresql'];

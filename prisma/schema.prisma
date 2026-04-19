@@ -7,18 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  admin
-  editor
-  viewer
-}
-
-enum ArticleStatus {
-  draft
-  published
-  archived
-}
-
 model User {
   id        String    @id @default(uuid()) @db.Uuid
   login     String    @unique
@@ -42,7 +30,7 @@ model Article {
   author     User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
   category   Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   comments   Comment[]
-  tags       Tag[]
+  tags       Tag[]         @relation("ArticleToTag")
 
   @@index([authorId])
   @@index([categoryId])
@@ -51,7 +39,7 @@ model Article {
 
 model Category {
   id          String    @id @default(uuid()) @db.Uuid
-  name        String    @unique
+  name        String
   description String
   articles    Article[]
 }
@@ -72,5 +60,17 @@ model Comment {
 model Tag {
   id       String    @id @default(uuid()) @db.Uuid
   name     String    @unique
-  articles Article[]
+  articles Article[] @relation("ArticleToTag")
+}
+
+enum UserRole {
+  admin
+  editor
+  viewer
+}
+
+enum ArticleStatus {
+  draft
+  published
+  archived
 }
