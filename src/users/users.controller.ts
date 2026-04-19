@@ -11,6 +11,7 @@ import {
   HttpStatus,
   Query,
   UseGuards,
+  Patch,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -19,18 +20,19 @@ import { validate as validateUUID } from 'uuid';
 import { UserEntity } from './users.entity';
 import { UUIDDto } from 'src/common/dto/uuid.dto';
 import { SearchUserDto } from './dto/search-user.dto';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { UserRole } from 'src/common/enums';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
 @Controller('user')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() createUserDto: CreateUserDto): Promise<UserEntity> {
     const user = await this.usersService.create(createUserDto);
@@ -59,6 +61,7 @@ export class UsersController {
   }
 
   @Put(':id')
+  @Roles(UserRole.ADMIN)
   async updatePassword(
     @Param() params: UUIDDto,
     @Body() dto: UpdateUserPasswordDto,
@@ -68,7 +71,19 @@ export class UsersController {
     return new UserEntity(user);
   }
 
+  @Patch(':id/role')
+  @Roles(UserRole.ADMIN)
+  async updateRole(
+    @Param() params: UUIDDto,
+    @Body() dto: UpdateUserRoleDto,
+  ): Promise<UserEntity> {
+    const { id } = params;
+    const user = await this.usersService.updateRole(id, dto);
+    return new UserEntity(user);
+  }
+
   @Delete(':id')
+  @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param() params: UUIDDto): Promise<void> {
     const { id } = params;

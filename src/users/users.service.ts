@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { User } from 'src/common/interfaces';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
@@ -103,6 +104,18 @@ export class UsersService {
     const updatedUser = await this.prisma.user.update({
       where: { id },
       data: { password: hash, updatedAt: BigInt(Date.now()) },
+    });
+
+    return this.toUser(updatedUser);
+  }
+
+  async updateRole(id: string, dto: UpdateUserRoleDto): Promise<User | undefined> {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException(`User with id ${id} not found`);
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: { role: dto.role, updatedAt: BigInt(Date.now()) },
     });
 
     return this.toUser(updatedUser);
