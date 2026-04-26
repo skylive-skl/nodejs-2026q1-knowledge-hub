@@ -10,6 +10,7 @@ import { CommentModule } from './comment/comment.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { AppLoggerService } from './common/logger/app-logger.service';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 @Module({
   imports: [
@@ -31,6 +32,6 @@ import { AppLoggerService } from './common/logger/app-logger.service';
     AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService, AppLoggerService],
+  providers: [AppService, AppLoggerService, LoggingInterceptor],
 })
 export class AppModule {}

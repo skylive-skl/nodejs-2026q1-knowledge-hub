@@ -12,6 +12,7 @@ import * as yaml from 'js-yaml';
 import { SwaggerModule } from '@nestjs/swagger';
 import { readFileSync } from 'node:fs';
 import { AppLoggerService } from './common/logger/app-logger.service';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -33,7 +34,10 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
-  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  app.useGlobalInterceptors(
+    app.get(LoggingInterceptor),
+    new ClassSerializerInterceptor(app.get(Reflector)),
+  );
   await app.listen(process.env.PORT || 4000);
 }
 bootstrap();
