@@ -25,8 +25,9 @@ export class AppLoggerService implements LoggerService {
     this.isProduction = nodeEnv === 'production';
 
     const configuredLevel =
-      (this.configService.get<string>('LOG_LEVEL')?.toLowerCase() as SupportedLogLevel) ??
-      'log';
+      (this.configService
+        .get<string>('LOG_LEVEL')
+        ?.toLowerCase() as SupportedLogLevel) ?? 'log';
 
     const normalizedLevel = SUPPORTED_LOG_LEVELS.includes(configuredLevel)
       ? configuredLevel
@@ -57,7 +58,11 @@ export class AppLoggerService implements LoggerService {
     this.write('verbose', message, optionalParams);
   }
 
-  private write(level: SupportedLogLevel, message: unknown, optionalParams: unknown[]): void {
+  private write(
+    level: SupportedLogLevel,
+    message: unknown,
+    optionalParams: unknown[],
+  ): void {
     if (!this.shouldLog(level)) {
       return;
     }
@@ -81,7 +86,8 @@ export class AppLoggerService implements LoggerService {
     }
 
     const contextChunk = context ? ` [${context}]` : '';
-    const metadataChunk = metadata.length > 0 ? ` ${JSON.stringify(metadata)}` : '';
+    const metadataChunk =
+      metadata.length > 0 ? ` ${JSON.stringify(metadata)}` : '';
     const output = `[${timestamp}] [${level.toUpperCase()}]${contextChunk} ${this.stringify(message)}${metadataChunk}`;
 
     this.writeToOutputs(level, output);
@@ -144,11 +150,17 @@ export class AppLoggerService implements LoggerService {
   }
 
   private createFileTimestamp(): string {
-    return new Date().toISOString().replace(/\..+$/, '').replace(/:/g, '-').replace('Z', '');
+    return new Date()
+      .toISOString()
+      .replace(/\..+$/, '')
+      .replace(/:/g, '-')
+      .replace('Z', '');
   }
 
   private resolveMaxFileSizeBytes(): number {
-    const value = Number(this.configService.get<string>('LOG_MAX_FILE_SIZE') ?? '1024');
+    const value = Number(
+      this.configService.get<string>('LOG_MAX_FILE_SIZE') ?? '1024',
+    );
     const maxSizeKb = Number.isFinite(value) && value > 0 ? value : 1024;
     return Math.floor(maxSizeKb * 1024);
   }
