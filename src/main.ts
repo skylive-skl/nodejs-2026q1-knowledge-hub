@@ -11,9 +11,16 @@ import { join } from 'node:path';
 import * as yaml from 'js-yaml';
 import { SwaggerModule } from '@nestjs/swagger';
 import { readFileSync } from 'node:fs';
+import { AppLoggerService } from './common/logger/app-logger.service';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    bufferLogs: true,
+  });
+  const logger = app.get(AppLoggerService);
+  app.useLogger(logger);
 
   const yamlPath = join(process.cwd(), '/doc/api.yaml');
   const fileContent = readFileSync(yamlPath, 'utf8');
@@ -29,7 +36,53 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
-  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  app.useGlobalInterceptors(
+    app.get(LoggingInterceptor),
+    new ClassSerializerInterceptor(app.get(Reflector)),
+  );
+  app.useGlobalFilters(app.get(AllExceptionsFilter));
   await app.listen(process.env.PORT || 4000);
+
+  let isShuttingDown = false;
+
+  const gracefulShutdown = async (
+    event: 'uncaughtException' | 'unhandledRejection',
+    reason: unknown,
+  ) => {
+    if (isShuttingDown) {
+      return;
+    }
+
+    isShuttingDown = true;
+    const error = reason instanceof Error ? reason : new Error(String(reason));
+
+    const logMethod =
+      event === 'uncaughtException' ? logger.fatal.bind(logger) : logger.error.bind(logger);
+
+    logMethod(
+      {
+        event,
+        message: error.message,
+        stack: error.stack,
+      },
+      'ProcessErrorHandler',
+    );
+
+    try {
+      await app.close();
+    } catch (shutdownError) {
+      logger.error(shutdownError, 'ProcessErrorHandler');
+    } finally {
+      process.exit(1);
+    }
+  };
+
+  process.on('uncaughtException', (error) => {
+    void gracefulShutdown('uncaughtException', error);
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    void gracefulShutdown('unhandledRejection', reason);
+  });
 }
 bootstrap();

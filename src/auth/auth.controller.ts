@@ -5,7 +5,6 @@ import {
   HttpStatus,
   Post,
   Req,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
@@ -17,6 +16,7 @@ import { AuthService } from './auth.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { UnauthorizedError } from 'src/common/errors/unauthorized.error';
 
 const isThrottleDisabledForTests =
   process.env.TEST_MODE === 'auth' ||
@@ -56,7 +56,7 @@ export class AuthController {
     @Body() dto: RefreshDto,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     if (!dto?.refreshToken) {
-      throw new UnauthorizedException('Refresh token is required');
+      throw new UnauthorizedError('Refresh token is required');
     }
 
     return this.authService.refresh(dto.refreshToken);
@@ -68,7 +68,7 @@ export class AuthController {
   async logout(@Req() req: Request, @Body() dto: RefreshDto): Promise<void> {
     const userId = (req.user as { userId: string }).userId;
     if (!dto?.refreshToken) {
-      throw new UnauthorizedException('Refresh token is required');
+      throw new UnauthorizedError('Refresh token is required');
     }
 
     await this.authService.logout(userId, dto.refreshToken);

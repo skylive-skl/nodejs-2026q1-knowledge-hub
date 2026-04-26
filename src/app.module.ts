@@ -9,6 +9,9 @@ import { CategoryModule } from './category/category.module';
 import { CommentModule } from './comment/comment.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
+import { AppLoggerService } from './common/logger/app-logger.service';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
   imports: [
@@ -30,6 +33,11 @@ import { AuthModule } from './auth/auth.module';
     AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    AppLoggerService,
+    LoggingInterceptor,
+    AllExceptionsFilter,
+  ],
 })
 export class AppModule {}

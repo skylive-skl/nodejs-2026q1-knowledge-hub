@@ -29,6 +29,26 @@ cp .env.example .env
 
 `.env` file must not be committed.
 
+### Logging configuration
+
+The application supports configurable logging via environment variables:
+
+- `LOG_LEVEL` - minimum log level. Supported values: `log`, `debug`, `warn`, `error`, `verbose`. Default: `log`.
+- `LOG_MAX_FILE_SIZE` - maximum size of `app.log` in kilobytes before rotation. Default: `1024`.
+
+Logging behavior:
+- In development mode logs are human-readable.
+- In production mode logs are structured JSON.
+- All incoming HTTP requests and outgoing HTTP responses are logged.
+- Sensitive fields such as `password`, `token`, `accessToken`, and `refreshToken` are masked as `[REDACTED]`.
+- Logs are written to stdout and to `app.log`.
+- When `app.log` exceeds the configured size, it is rotated with a timestamp suffix.
+
+Error handling:
+- The application uses a global exception filter for HTTP error responses.
+- Custom application errors are supported for validation, unauthorized, forbidden, and not found cases.
+- Process-level handlers are registered for `uncaughtException` and `unhandledRejection` with graceful shutdown.
+
 ## Running application
 
 ```
@@ -95,42 +115,60 @@ https://hub.docker.com/r/skylive/knowledge-hub-api
 
 ## Testing
 
-After application running open new terminal and enter:
+Available test commands:
 
-To run all tests without authorization
+Run all tests:
 
-```
+```bash
 npm run test
 ```
 
-To run only one of all test suites
+Run unit tests only:
 
-```
-npm run test -- <path to suite>
-```
-
-To run all test with authorization
-
-```
-npm run test:auth
+```bash
+npm run test:unit
 ```
 
-To run only specific test suite with authorization
+Run all e2e tests:
 
-```
-npm run test:auth -- <path to suite>
-```
-
-To run refresh token tests
-
-```
-npm run test:refresh
+```bash
+npm run test:e2e
 ```
 
-To run RBAC (role-based access control) tests
+Run core e2e tests only:
 
+```bash
+npm run test:e2e:core
 ```
-npm run test:rbac
+
+Run auth-related e2e tests:
+
+```bash
+npm run test:e2e:auth
+```
+
+Run refresh token e2e tests:
+
+```bash
+npm run test:e2e:refresh
+```
+
+Run RBAC e2e tests:
+
+```bash
+npm run test:e2e:rbac
+```
+
+Run tests in watch mode:
+
+```bash
+npm run test:watch
+```
+
+Generate coverage report:
+
+```bash
+npm run test:coverage
 ```
 
 ### Auth/RBAC test mode notes
@@ -148,6 +186,7 @@ Then run tests in a separate terminal.
 Notes:
 - TEST_MODE=auth enables authorization behavior expected by e2e suites.
 - DISABLE_THROTTLE_FOR_TESTS=true disables auth endpoint rate limiting only for test runs to avoid flaky 429 errors.
+- npm run test runs unit tests first and then the full e2e suite.
 
 ### Auto-fix and format
 

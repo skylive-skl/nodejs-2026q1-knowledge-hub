@@ -6,7 +6,6 @@ import {
   Put,
   Param,
   Delete,
-  BadRequestException,
   HttpCode,
   HttpStatus,
   Query,
@@ -25,6 +24,7 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { UserRole } from 'src/common/enums';
+import { ValidationError } from 'src/common/errors/validation.error';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('user')
@@ -88,7 +88,7 @@ export class UsersController {
   async remove(@Param() params: UUIDDto): Promise<void> {
     const { id } = params;
     if (!validateUUID(id)) {
-      throw new BadRequestException(`Invalid UUID: ${id}`);
+      throw new ValidationError(`Invalid UUID: ${id}`);
     }
     await this.usersService.remove(id);
   }
