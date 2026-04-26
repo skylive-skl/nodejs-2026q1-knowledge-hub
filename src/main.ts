@@ -56,7 +56,10 @@ async function bootstrap() {
     isShuttingDown = true;
     const error = reason instanceof Error ? reason : new Error(String(reason));
 
-    logger.error(
+    const logMethod =
+      event === 'uncaughtException' ? logger.fatal.bind(logger) : logger.error.bind(logger);
+
+    logMethod(
       {
         event,
         message: error.message,

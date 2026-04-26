@@ -58,6 +58,32 @@ export class AppLoggerService implements LoggerService {
     this.write('verbose', message, optionalParams);
   }
 
+  fatal(message: unknown, ...optionalParams: unknown[]): void {
+    const timestamp = new Date().toISOString();
+    const context = this.extractContext(optionalParams);
+    const metadata = this.extractMetadata(optionalParams);
+
+    if (this.isProduction) {
+      const payload = {
+        timestamp,
+        level: 'fatal',
+        message: this.stringify(message),
+        context,
+        metadata,
+      };
+
+      this.writeToOutputs('error', JSON.stringify(payload));
+      return;
+    }
+
+    const contextChunk = context ? ` [${context}]` : '';
+    const metadataChunk =
+      metadata.length > 0 ? ` ${JSON.stringify(metadata)}` : '';
+    const output = `[${timestamp}] [FATAL]${contextChunk} ${this.stringify(message)}${metadataChunk}`;
+
+    this.writeToOutputs('error', output);
+  }
+
   private write(
     level: SupportedLogLevel,
     message: unknown,
