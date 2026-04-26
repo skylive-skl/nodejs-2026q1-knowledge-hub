@@ -1,7 +1,9 @@
 import { validate } from 'class-validator';
+import 'reflect-metadata';
 import { CreateUserDto } from './create-user.dto';
 import { UpdateUserPasswordDto } from './update-user-password.dto';
 import { UpdateUserRoleDto } from './update-user-role.dto';
+import { SearchUserDto } from './search-user.dto';
 import { UserRole } from 'src/common/enums';
 
 describe('Users DTO Validation', () => {
@@ -70,6 +72,34 @@ describe('Users DTO Validation', () => {
       dto.role = UserRole.ADMIN;
 
       const errors = await validate(dto);
+      expect(errors).toHaveLength(0);
+    });
+  });
+
+  describe('SearchUserDto', () => {
+    it('fails for invalid list query values', async () => {
+      const dto = new SearchUserDto();
+      dto.page = 0;
+      dto.limit = 101;
+      dto.order = 'up' as any;
+
+      const errors = await validate(dto);
+      const properties = errors.map((err) => err.property);
+
+      expect(properties).toContain('page');
+      expect(properties).toContain('limit');
+      expect(properties).toContain('order');
+    });
+
+    it('passes for valid list query values', async () => {
+      const dto = new SearchUserDto();
+      dto.page = 1;
+      dto.limit = 10;
+      dto.order = 'asc';
+      dto.sortBy = 'login';
+
+      const errors = await validate(dto);
+
       expect(errors).toHaveLength(0);
     });
   });

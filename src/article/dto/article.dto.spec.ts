@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { validate } from 'class-validator';
 import { CreateArticleDto } from './create-article.dto';
 import { SearchArticleDto } from './search-article.dto';
+import { UpdateArticleDto } from './update-article.dto';
 import { ArticleStatus } from 'src/common/enums';
 
 describe('Article DTO Validation', () => {
@@ -41,6 +42,17 @@ describe('Article DTO Validation', () => {
       dto.tags = ['nestjs', 'testing'];
       dto.authorId = '6a631748-ab08-4ef4-a4c8-bcf02dd7f19f';
       dto.categoryId = '2c293ef3-f211-40e4-a203-bf85f435f18d';
+
+      const errors = await validate(dto);
+
+      expect(errors).toHaveLength(0);
+    });
+  });
+
+  describe('UpdateArticleDto', () => {
+    it('passes for partial valid payload', async () => {
+      const dto = new UpdateArticleDto();
+      dto.title = 'Updated title';
 
       const errors = await validate(dto);
 
