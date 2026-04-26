@@ -23,7 +23,7 @@
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "vitest run",
     "test:e2e": "npm run test:e2e:core && npm run test:e2e:auth && npm run test:e2e:refresh && npm run test:e2e:rbac",
-    "test:e2e:core": "jest --testMatch \"<rootDir>/*.spec.ts\" --noStackTrace --runInBand",
+    "test:e2e:core": "cross-env TEST_MODE=auth jest --testMatch \"<rootDir>/*.spec.ts\" --noStackTrace --runInBand",
     "test:e2e:auth": "cross-env TEST_MODE=auth jest --testPathIgnorePatterns \"refresh|rbac\" --noStackTrace --runInBand",
     "test:e2e:refresh": "cross-env TEST_MODE=auth jest --testPathPattern refresh.e2e.spec.ts --noStackTrace --runInBand",
     "test:e2e:rbac": "cross-env TEST_MODE=auth jest --testPathPattern rbac --noStackTrace --runInBand",
