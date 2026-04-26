@@ -6,7 +6,9 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+
 RUN npm run build
+RUN npx prisma generate
 
 
 FROM node:24-alpine AS production
@@ -24,6 +26,7 @@ RUN apk add --no-cache libstdc++ \
 
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/doc ./doc
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 
 RUN chown -R node:node /app
 
@@ -31,4 +34,4 @@ USER node
 
 EXPOSE 4000
 
-CMD ["node", "dist/main"]
+CMD ["node", "dist/src/main"]
