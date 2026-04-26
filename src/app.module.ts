@@ -33,6 +33,11 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService, AppLoggerService, LoggingInterceptor, AllExceptionsFilter],
+  providers: [
+    AppService,
+    AppLoggerService,
+    LoggingInterceptor,
+    AllExceptionsFilter,
+  ],
 })
 export class AppModule {}

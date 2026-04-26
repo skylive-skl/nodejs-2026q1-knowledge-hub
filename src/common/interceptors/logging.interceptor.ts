@@ -46,7 +46,9 @@ export class LoggingInterceptor implements NestInterceptor {
       catchError((error: unknown) => {
         const durationMs = Date.now() - start;
         const statusCode =
-          error instanceof HttpException ? error.getStatus() : response.statusCode;
+          error instanceof HttpException
+            ? error.getStatus()
+            : response.statusCode;
         this.logger.warn(
           {
             statusCode,
@@ -63,7 +65,10 @@ export class LoggingInterceptor implements NestInterceptor {
 
 const SENSITIVE_KEYS = ['password', 'token', 'accessToken', 'refreshToken'];
 
-function sanitizeSensitiveData(value: unknown, seen = new WeakSet<object>()): unknown {
+function sanitizeSensitiveData(
+  value: unknown,
+  seen = new WeakSet<object>(),
+): unknown {
   if (value === null || value === undefined) {
     return value;
   }

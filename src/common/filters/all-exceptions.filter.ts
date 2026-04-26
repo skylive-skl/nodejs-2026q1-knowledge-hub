@@ -30,7 +30,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const { statusCode, body } = this.buildErrorResponse(exception);
 
-    const errorToLog = exception instanceof Error ? exception : new Error(String(exception));
+    const errorToLog =
+      exception instanceof Error ? exception : new Error(String(exception));
 
     this.logger.error(
       {
@@ -96,7 +97,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return response;
     }
 
-    if (typeof response === 'object' && response !== null && 'message' in response) {
+    if (
+      typeof response === 'object' &&
+      response !== null &&
+      'message' in response
+    ) {
       const candidate = (response as { message: string | string[] }).message;
       if (Array.isArray(candidate)) {
         return candidate.join(', ');
@@ -108,7 +113,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
     return exception.message;
   }
 
-  private resolveHttpExceptionError(statusCode: number, response: string | object): string {
+  private resolveHttpExceptionError(
+    statusCode: number,
+    response: string | object,
+  ): string {
     if (
       typeof response === 'object' &&
       response !== null &&
