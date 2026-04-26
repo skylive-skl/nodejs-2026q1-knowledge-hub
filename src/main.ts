@@ -11,9 +11,13 @@ import { join } from 'node:path';
 import * as yaml from 'js-yaml';
 import { SwaggerModule } from '@nestjs/swagger';
 import { readFileSync } from 'node:fs';
+import { AppLoggerService } from './common/logger/app-logger.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    bufferLogs: true,
+  });
+  app.useLogger(app.get(AppLoggerService));
 
   const yamlPath = join(process.cwd(), '/doc/api.yaml');
   const fileContent = readFileSync(yamlPath, 'utf8');
