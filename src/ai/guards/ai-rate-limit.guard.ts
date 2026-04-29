@@ -37,11 +37,12 @@ export class AiRateLimitGuard implements CanActivate {
 
     if (timestamps.length >= this.rpm) {
       const oldestInWindow = timestamps[0];
-      const retryAfterSec = Math.ceil(
-        (oldestInWindow + windowMs - now) / 1000,
-      );
+      const retryAfterSec = Math.ceil((oldestInWindow + windowMs - now) / 1000);
       response.setHeader('Retry-After', String(retryAfterSec));
-      throw new HttpException('Too Many Requests', HttpStatus.TOO_MANY_REQUESTS);
+      throw new HttpException(
+        'Too Many Requests',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
 
     timestamps.push(now);

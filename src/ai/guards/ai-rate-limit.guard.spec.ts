@@ -50,7 +50,9 @@ describe('AiRateLimitGuard', () => {
   it('sets Retry-After header when limit is exceeded', () => {
     const ctx = makeContext('2.3.4.5');
     const http = ctx.switchToHttp();
-    const response = http.getResponse() as { setHeader: ReturnType<typeof vi.fn> };
+    const response = http.getResponse() as {
+      setHeader: ReturnType<typeof vi.fn>;
+    };
 
     guard.canActivate(ctx);
     guard.canActivate(ctx);

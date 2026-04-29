@@ -11,7 +11,11 @@ const makeResponse = (status: number, data: object) => ({
 
 const makeGeminiResponse = (text: string) => ({
   candidates: [{ content: { parts: [{ text }] } }],
-  usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 5, totalTokenCount: 15 },
+  usageMetadata: {
+    promptTokenCount: 10,
+    candidatesTokenCount: 5,
+    totalTokenCount: 15,
+  },
 });
 
 const makeService = (overrides: Record<string, unknown> = {}) => {
@@ -69,9 +73,7 @@ describe('GeminiService', () => {
   });
 
   it('returns empty text when candidates list is empty', async () => {
-    fetchMock.mockResolvedValueOnce(
-      makeResponse(200, { candidates: [] }),
-    );
+    fetchMock.mockResolvedValueOnce(makeResponse(200, { candidates: [] }));
 
     const result = await service.generateContent('prompt');
     expect(result.text).toBe('');
@@ -124,7 +126,10 @@ describe('GeminiService', () => {
   });
 
   it('throws GeminiUnavailableError on AbortError (timeout)', async () => {
-    const abortError = new DOMException('The operation was aborted.', 'AbortError');
+    const abortError = new DOMException(
+      'The operation was aborted.',
+      'AbortError',
+    );
     fetchMock.mockRejectedValue(abortError);
 
     await expect(service.generateContent('prompt')).rejects.toBeInstanceOf(

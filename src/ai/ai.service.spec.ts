@@ -23,7 +23,10 @@ describe('AiService', () => {
   let service: AiService;
   let geminiMock: { generateContent: ReturnType<typeof vi.fn> };
   let articleServiceMock: { findOne: ReturnType<typeof vi.fn> };
-  let usageMock: { record: ReturnType<typeof vi.fn>; getStats: ReturnType<typeof vi.fn> };
+  let usageMock: {
+    record: ReturnType<typeof vi.fn>;
+    getStats: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     geminiMock = { generateContent: vi.fn() };
@@ -124,7 +127,9 @@ describe('AiService', () => {
   describe('translate', () => {
     it('returns translation response with correct shape', async () => {
       articleServiceMock.findOne.mockResolvedValue(makeArticle());
-      geminiMock.generateContent.mockResolvedValue({ text: ' Translated text ' });
+      geminiMock.generateContent.mockResolvedValue({
+        text: ' Translated text ',
+      });
 
       const result = await service.translate('article-uuid-1', {
         targetLanguage: 'ru',
@@ -186,7 +191,9 @@ describe('AiService', () => {
 
     it('defaults severity to info when not detected', async () => {
       articleServiceMock.findOne.mockResolvedValue(makeArticle());
-      geminiMock.generateContent.mockResolvedValue({ text: 'No structured data here.' });
+      geminiMock.generateContent.mockResolvedValue({
+        text: 'No structured data here.',
+      });
 
       const result = await service.analyze('article-uuid-1', {});
 

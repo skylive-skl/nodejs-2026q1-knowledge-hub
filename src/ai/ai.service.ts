@@ -157,10 +157,10 @@ export class AiService {
           .filter(Boolean)
       : [];
 
-    const analysisSection = raw.match(/^ANALYSIS:\s*\n([\s\S]*?)(?=\n[A-Z]+:)/im);
-    const analysis = analysisSection
-      ? analysisSection[1].trim()
-      : raw.trim();
+    const analysisSection = raw.match(
+      /^ANALYSIS:\s*\n([\s\S]*?)(?=\n[A-Z]+:)/im,
+    );
+    const analysis = analysisSection ? analysisSection[1].trim() : raw.trim();
 
     return { articleId, analysis, suggestions, severity };
   }

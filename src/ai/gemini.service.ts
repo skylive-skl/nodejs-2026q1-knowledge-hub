@@ -38,8 +38,7 @@ export class GeminiService {
     this.baseUrl =
       this.config.get<string>('GEMINI_API_BASE_URL') ??
       'https://generativelanguage.googleapis.com';
-    this.model =
-      this.config.get<string>('GEMINI_MODEL') ?? 'gemini-2.0-flash';
+    this.model = this.config.get<string>('GEMINI_MODEL') ?? 'gemini-2.0-flash';
     this.timeoutMs = this.config.get<number>('AI_HTTP_TIMEOUT_MS') ?? 15000;
     this.retryCount = this.config.get<number>('AI_RETRY_COUNT') ?? 3;
     this.retryBaseDelayMs =
@@ -61,10 +60,7 @@ export class GeminiService {
 
       try {
         const result = await this.fetchWithTimeout(url, body);
-        this.logger.log(
-          { model: this.model, attempt },
-          'GeminiService',
-        );
+        this.logger.log({ model: this.model, attempt }, 'GeminiService');
         return result;
       } catch (error) {
         if (error instanceof GeminiAuthError) {
@@ -110,10 +106,7 @@ export class GeminiService {
         signal: controller.signal,
       });
     } catch (fetchError) {
-      if (
-        fetchError instanceof Error &&
-        fetchError.name === 'AbortError'
-      ) {
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
         throw new GeminiUnavailableError('AI service request timed out');
       }
       throw new GeminiUnavailableError('AI service network error');
