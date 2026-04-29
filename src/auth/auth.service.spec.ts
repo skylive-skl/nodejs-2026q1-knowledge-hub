@@ -98,7 +98,9 @@ describe('AuthService', () => {
 
   describe('signup', () => {
     it('throws ValidationError for duplicate login', async () => {
-      prismaServiceMock.user.findUnique.mockResolvedValue({ id: 'existing-user' });
+      prismaServiceMock.user.findUnique.mockResolvedValue({
+        id: 'existing-user',
+      });
 
       await expect(
         service.signup({ login: 'john', password: 'secret' }),
@@ -118,7 +120,10 @@ describe('AuthService', () => {
       prismaServiceMock.user.findUnique.mockResolvedValue(null);
       usersServiceMock.create.mockResolvedValue(created);
 
-      const result = await service.signup({ login: 'john', password: 'secret' });
+      const result = await service.signup({
+        login: 'john',
+        password: 'secret',
+      });
 
       expect(usersServiceMock.create).toHaveBeenCalledWith({
         login: 'john',
@@ -187,7 +192,9 @@ describe('AuthService', () => {
         },
       );
 
-      const expectedHash = createHash('sha256').update(refreshToken).digest('hex');
+      const expectedHash = createHash('sha256')
+        .update(refreshToken)
+        .digest('hex');
       expect(prismaServiceMock.refreshToken.create).toHaveBeenCalledWith({
         data: {
           token: expectedHash,
@@ -204,7 +211,9 @@ describe('AuthService', () => {
 
     it('stores fallback refresh token expiration when decode has no exp', async () => {
       const refreshToken = 'refresh.no-exp';
-      const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+      const dateNowSpy = vi
+        .spyOn(Date, 'now')
+        .mockReturnValue(1_700_000_000_000);
 
       prismaServiceMock.user.findUnique.mockResolvedValue({
         id: 'user-1',
@@ -260,7 +269,9 @@ describe('AuthService', () => {
         login: 'john',
         role: UserRole.EDITOR,
       });
-      prismaServiceMock.refreshToken.findFirst.mockResolvedValue({ id: 'rt-1' });
+      prismaServiceMock.refreshToken.findFirst.mockResolvedValue({
+        id: 'rt-1',
+      });
       prismaServiceMock.user.findUnique.mockResolvedValue(null);
 
       await expect(service.refresh('refresh-token')).rejects.toBeInstanceOf(
@@ -277,7 +288,9 @@ describe('AuthService', () => {
         login: 'john',
         role: UserRole.EDITOR,
       });
-      prismaServiceMock.refreshToken.findFirst.mockResolvedValue({ id: 'rt-1' });
+      prismaServiceMock.refreshToken.findFirst.mockResolvedValue({
+        id: 'rt-1',
+      });
       prismaServiceMock.user.findUnique.mockResolvedValue({
         id: 'user-1',
         login: 'john',
@@ -312,9 +325,9 @@ describe('AuthService', () => {
     it('throws ForbiddenError when token does not belong to user', async () => {
       jwtServiceMock.verifyAsync.mockResolvedValue({ userId: 'other-user' });
 
-      await expect(service.logout('user-1', 'refresh-token')).rejects.toBeInstanceOf(
-        ForbiddenError,
-      );
+      await expect(
+        service.logout('user-1', 'refresh-token'),
+      ).rejects.toBeInstanceOf(ForbiddenError);
       expect(prismaServiceMock.refreshToken.deleteMany).not.toHaveBeenCalled();
     });
 

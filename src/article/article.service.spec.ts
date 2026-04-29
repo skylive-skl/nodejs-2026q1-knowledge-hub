@@ -128,9 +128,9 @@ describe('ArticleService', () => {
         status: ArticleStatus.PUBLISHED,
       } as any);
 
-      expect(prismaServiceMock.article.create.mock.calls[0][0].data.status).toBe(
-        ArticleStatus.PUBLISHED,
-      );
+      expect(
+        prismaServiceMock.article.create.mock.calls[0][0].data.status,
+      ).toBe(ArticleStatus.PUBLISHED);
     });
   });
 
@@ -366,7 +366,9 @@ describe('ArticleService', () => {
 
   describe('exists', () => {
     it('returns true when article exists', async () => {
-      prismaServiceMock.article.findUnique.mockResolvedValue({ id: 'article-1' });
+      prismaServiceMock.article.findUnique.mockResolvedValue({
+        id: 'article-1',
+      });
 
       const result = await service.exists('article-1');
 

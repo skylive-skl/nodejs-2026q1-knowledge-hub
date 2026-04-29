@@ -1,6 +1,4 @@
-import {
-  Injectable,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
@@ -90,8 +88,7 @@ export class UsersService {
     if (!user) throw new NotFoundError(`User with id ${id} not found`);
 
     const isOldPassword = await bcrypt.compare(dto.oldPassword, user.password);
-    if (!isOldPassword)
-      throw new ForbiddenError('Old password is incorrect');
+    if (!isOldPassword) throw new ForbiddenError('Old password is incorrect');
 
     if (dto.oldPassword === dto.newPassword)
       throw new ForbiddenError(
@@ -109,7 +106,10 @@ export class UsersService {
     return this.toUser(updatedUser);
   }
 
-  async updateRole(id: string, dto: UpdateUserRoleDto): Promise<User | undefined> {
+  async updateRole(
+    id: string,
+    dto: UpdateUserRoleDto,
+  ): Promise<User | undefined> {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundError(`User with id ${id} not found`);
 

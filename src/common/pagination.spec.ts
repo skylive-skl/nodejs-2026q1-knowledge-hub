@@ -43,7 +43,11 @@ describe('pagination helpers', () => {
       const byNameAsc = sortItems(items, 'name', 'asc', ['name']);
       const byScoreDesc = sortItems(items, 'score', 'desc', ['score']);
 
-      expect(byNameAsc.map((item) => item.name)).toEqual(['Alice', 'Bob', 'Eve']);
+      expect(byNameAsc.map((item) => item.name)).toEqual([
+        'Alice',
+        'Bob',
+        'Eve',
+      ]);
       expect(byScoreDesc.map((item) => item.score)).toEqual([null, 20, 10]);
     });
   });
