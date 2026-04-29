@@ -9,6 +9,7 @@ import { CategoryModule } from './category/category.module';
 import { CommentModule } from './comment/comment.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
+import { AiModule } from './ai/ai.module';
 import { AppLoggerService } from './common/logger/app-logger.service';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -30,6 +31,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     ArticleModule,
     CategoryModule,
     CommentModule,
+    AiModule,
     AuthModule,
   ],
   controllers: [AppController],
