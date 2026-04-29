@@ -1,6 +1,4 @@
 import {
-  BadRequestException,
-  ForbiddenException,
   Injectable,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -12,6 +10,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { UsersService } from 'src/users/users.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
+import { ValidationError } from 'src/common/errors/validation.error';
+import { ForbiddenError } from 'src/common/errors/forbidden.error';
 
 type JwtPayload = {
   userId: string;
@@ -72,7 +72,7 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new BadRequestException('Login is already taken');
+      throw new ValidationError('Login is already taken');
     }
 
     return this.usersService.create({
@@ -88,12 +88,12 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new ForbiddenException('Invalid login or password');
+      throw new ForbiddenError('Invalid login or password');
     }
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.password);
     if (!isPasswordValid) {
-      throw new ForbiddenException('Invalid login or password');
+      throw new ForbiddenError('Invalid login or password');
     }
 
     const payload: JwtPayload = {
@@ -116,7 +116,7 @@ export class AuthService {
         secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       });
     } catch {
-      throw new ForbiddenException('Invalid or expired refresh token');
+      throw new ForbiddenError('Invalid or expired refresh token');
     }
 
     const tokenHash = this.hashToken(refreshToken);
@@ -130,7 +130,7 @@ export class AuthService {
     });
 
     if (!activeToken) {
-      throw new ForbiddenException('Refresh token is invalidated');
+      throw new ForbiddenError('Refresh token is invalidated');
     }
 
     const user = await this.prisma.user.findUnique({
@@ -139,7 +139,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new ForbiddenException('Invalid or expired refresh token');
+      throw new ForbiddenError('Invalid or expired refresh token');
     }
 
     const freshPayload: JwtPayload = {
@@ -159,19 +159,18 @@ export class AuthService {
   }
 
   async logout(userId: string, refreshToken: string): Promise<void> {
-    try {
-      const payload = await this.jwtService.verifyAsync<JwtPayload>(
-        refreshToken,
-        {
-          secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
-        },
-      );
+    let payload: JwtPayload;
 
-      if (payload.userId !== userId) {
-        throw new ForbiddenException('Refresh token does not belong to user');
-      }
+    try {
+      payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
+        secret: this.configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+      });
     } catch {
-      throw new ForbiddenException('Invalid or expired refresh token');
+      throw new ForbiddenError('Invalid or expired refresh token');
+    }
+
+    if (payload.userId !== userId) {
+      throw new ForbiddenError('Refresh token does not belong to user');
     }
 
     const tokenHash = this.hashToken(refreshToken);

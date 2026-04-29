@@ -1,9 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
 import { ArticleService } from './article.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CommentService } from 'src/comment/comment.service';
 import { ArticleStatus } from 'src/common/enums';
+import { NotFoundError } from 'src/common/errors/not-found.error';
+import { UnprocessableEntityError } from 'src/common/errors/unprocessable-entity.error';
 
 describe('ArticleService', () => {
   let service: ArticleService;
@@ -204,22 +205,74 @@ describe('ArticleService', () => {
       expect(result.updatedAt).toBe(2000);
     });
 
-    it('throws NotFoundException when article is missing', async () => {
+    it('throws NotFoundError when article is missing', async () => {
       prismaServiceMock.article.findUnique.mockResolvedValue(null);
 
       await expect(service.findOne('missing-id')).rejects.toBeInstanceOf(
-        NotFoundException,
+        NotFoundError,
       );
     });
   });
 
   describe('update', () => {
-    it('throws NotFoundException when article does not exist', async () => {
+    it('throws NotFoundError when article does not exist', async () => {
       prismaServiceMock.article.findUnique.mockResolvedValue(null);
 
       await expect(
         service.update('missing-id', { title: 'New title' }),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it('allows status transition from draft to published', async () => {
+      prismaServiceMock.article.findUnique.mockResolvedValue(
+        makeDbArticle({ status: ArticleStatus.DRAFT }),
+      );
+      prismaServiceMock.article.update.mockResolvedValue(
+        makeDbArticle({ status: ArticleStatus.PUBLISHED }),
+      );
+
+      const result = await service.update('article-1', {
+        status: ArticleStatus.PUBLISHED,
+      });
+
+      expect(result.status).toBe(ArticleStatus.PUBLISHED);
+    });
+
+    it('allows status transition from published to archived', async () => {
+      prismaServiceMock.article.findUnique.mockResolvedValue(
+        makeDbArticle({ status: ArticleStatus.PUBLISHED }),
+      );
+      prismaServiceMock.article.update.mockResolvedValue(
+        makeDbArticle({ status: ArticleStatus.ARCHIVED }),
+      );
+
+      const result = await service.update('article-1', {
+        status: ArticleStatus.ARCHIVED,
+      });
+
+      expect(result.status).toBe(ArticleStatus.ARCHIVED);
+    });
+
+    it('throws UnprocessableEntityError for transition from published to draft', async () => {
+      prismaServiceMock.article.findUnique.mockResolvedValue(
+        makeDbArticle({ status: ArticleStatus.PUBLISHED }),
+      );
+
+      await expect(
+        service.update('article-1', { status: ArticleStatus.DRAFT }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityError);
+      expect(prismaServiceMock.article.update).not.toHaveBeenCalled();
+    });
+
+    it('throws UnprocessableEntityError for transition from archived to published', async () => {
+      prismaServiceMock.article.findUnique.mockResolvedValue(
+        makeDbArticle({ status: ArticleStatus.ARCHIVED }),
+      );
+
+      await expect(
+        service.update('article-1', { status: ArticleStatus.PUBLISHED }),
+      ).rejects.toBeInstanceOf(UnprocessableEntityError);
+      expect(prismaServiceMock.article.update).not.toHaveBeenCalled();
     });
 
     it('updates article and replaces tags when tags are provided', async () => {
@@ -301,11 +354,11 @@ describe('ArticleService', () => {
       });
     });
 
-    it('throws NotFoundException when remove target does not exist', async () => {
+    it('throws NotFoundError when remove target does not exist', async () => {
       prismaServiceMock.article.findUnique.mockResolvedValue(null);
 
       await expect(service.remove('missing-id')).rejects.toBeInstanceOf(
-        NotFoundException,
+        NotFoundError,
       );
       expect(prismaServiceMock.article.delete).not.toHaveBeenCalled();
     });

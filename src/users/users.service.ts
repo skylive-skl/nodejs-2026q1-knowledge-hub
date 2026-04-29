@@ -1,7 +1,5 @@
 import {
-  ForbiddenException,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserPasswordDto } from './dto/update-user-password.dto';
@@ -13,6 +11,8 @@ import { UserRole } from 'src/common/enums';
 import { SearchUserDto } from './dto/search-user.dto';
 import { paginate, shouldPaginate, sortItems } from 'src/common/pagination';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { ForbiddenError } from 'src/common/errors/forbidden.error';
+import { NotFoundError } from 'src/common/errors/not-found.error';
 
 @Injectable()
 export class UsersService {
@@ -60,7 +60,7 @@ export class UsersService {
 
   async findOne(id: string): Promise<User | undefined> {
     const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) throw new NotFoundException(`User with id ${id} not found`);
+    if (!user) throw new NotFoundError(`User with id ${id} not found`);
     return this.toUser(user);
   }
 
@@ -87,14 +87,14 @@ export class UsersService {
     dto: UpdateUserPasswordDto,
   ): Promise<User | undefined> {
     const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) throw new NotFoundException(`User with id ${id} not found`);
+    if (!user) throw new NotFoundError(`User with id ${id} not found`);
 
     const isOldPassword = await bcrypt.compare(dto.oldPassword, user.password);
     if (!isOldPassword)
-      throw new ForbiddenException('Old password is incorrect');
+      throw new ForbiddenError('Old password is incorrect');
 
     if (dto.oldPassword === dto.newPassword)
-      throw new ForbiddenException(
+      throw new ForbiddenError(
         'New password must be different from the old one',
       );
 
@@ -111,7 +111,7 @@ export class UsersService {
 
   async updateRole(id: string, dto: UpdateUserRoleDto): Promise<User | undefined> {
     const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) throw new NotFoundException(`User with id ${id} not found`);
+    if (!user) throw new NotFoundError(`User with id ${id} not found`);
 
     const updatedUser = await this.prisma.user.update({
       where: { id },
@@ -123,7 +123,7 @@ export class UsersService {
 
   async remove(id: string): Promise<boolean> {
     const user = await this.prisma.user.findUnique({ where: { id } });
-    if (!user) throw new NotFoundException(`User with id ${id} not found`);
+    if (!user) throw new NotFoundError(`User with id ${id} not found`);
 
     await this.prisma.user.delete({ where: { id } });
     return true;

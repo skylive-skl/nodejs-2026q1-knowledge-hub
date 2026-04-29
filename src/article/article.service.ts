@@ -1,6 +1,5 @@
 import {
   Injectable,
-  NotFoundException,
   Inject,
   forwardRef,
 } from '@nestjs/common';
@@ -12,9 +11,17 @@ import { CommentService } from 'src/comment/comment.service';
 import { SearchArticleDto } from './dto/search-article.dto';
 import { paginate, shouldPaginate, sortItems } from 'src/common/pagination';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { NotFoundError } from 'src/common/errors/not-found.error';
+import { UnprocessableEntityError } from 'src/common/errors/unprocessable-entity.error';
 
 @Injectable()
 export class ArticleService {
+  private readonly statusTransitions: Record<ArticleStatus, ArticleStatus[]> = {
+    [ArticleStatus.DRAFT]: [ArticleStatus.PUBLISHED],
+    [ArticleStatus.PUBLISHED]: [ArticleStatus.ARCHIVED],
+    [ArticleStatus.ARCHIVED]: [],
+  };
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(forwardRef(() => CommentService))
@@ -43,6 +50,22 @@ export class ArticleService {
       createdAt: Number(entity.createdAt),
       updatedAt: Number(entity.updatedAt),
     };
+  }
+
+  private validateStatusTransition(
+    currentStatus: ArticleStatus,
+    nextStatus: ArticleStatus,
+  ) {
+    if (currentStatus === nextStatus) {
+      return;
+    }
+
+    const allowedTransitions = this.statusTransitions[currentStatus] ?? [];
+    if (!allowedTransitions.includes(nextStatus)) {
+      throw new UnprocessableEntityError(
+        `Invalid status transition from ${currentStatus} to ${nextStatus}`,
+      );
+    }
   }
 
   async create(dto: CreateArticleDto) {
@@ -119,7 +142,7 @@ export class ArticleService {
     });
 
     if (!article) {
-      throw new NotFoundException(`Article with ID ${id} not found`);
+      throw new NotFoundError(`Article with ID ${id} not found`);
     }
 
     return this.toArticle(article);
@@ -131,7 +154,14 @@ export class ArticleService {
     });
 
     if (!existingArticle) {
-      throw new NotFoundException(`Article with ID ${id} not found`);
+      throw new NotFoundError(`Article with ID ${id} not found`);
+    }
+
+    if (updateArticleDto.status) {
+      this.validateStatusTransition(
+        existingArticle.status as ArticleStatus,
+        updateArticleDto.status,
+      );
     }
 
     const { tags, ...rest } = updateArticleDto;

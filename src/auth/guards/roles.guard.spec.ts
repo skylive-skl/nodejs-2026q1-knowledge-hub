@@ -1,7 +1,8 @@
-import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RolesGuard } from './roles.guard';
 import { UserRole } from 'src/common/enums';
+import { ForbiddenError } from 'src/common/errors/forbidden.error';
 
 describe('RolesGuard', () => {
   const reflectorMock = {
@@ -32,18 +33,18 @@ describe('RolesGuard', () => {
     expect(result).toBe(true);
   });
 
-  it('throws ForbiddenException when user is missing in request', () => {
+  it('throws ForbiddenError when user is missing in request', () => {
     reflectorMock.getAllAndOverride.mockReturnValue([UserRole.ADMIN]);
 
-    expect(() => guard.canActivate(makeContext())).toThrow(ForbiddenException);
+    expect(() => guard.canActivate(makeContext())).toThrow(ForbiddenError);
   });
 
-  it('throws ForbiddenException when user role is insufficient', () => {
+  it('throws ForbiddenError when user role is insufficient', () => {
     reflectorMock.getAllAndOverride.mockReturnValue([UserRole.ADMIN]);
 
     expect(() =>
       guard.canActivate(makeContext({ role: UserRole.VIEWER })),
-    ).toThrow(ForbiddenException);
+    ).toThrow(ForbiddenError);
   });
 
   it('allows access when user role is included in required roles', () => {

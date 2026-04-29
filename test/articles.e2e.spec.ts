@@ -391,6 +391,58 @@ describe('Article (e2e)', () => {
 
       expect(response.status).toBe(StatusCodes.NOT_FOUND);
     });
+
+    it('should allow valid status transition chain draft -> published -> archived', async () => {
+      const createResponse = await unauthorizedRequest
+        .post(articlesRoutes.create)
+        .set(commonHeaders)
+        .send({ ...createArticleDto, status: 'draft' });
+
+      expect(createResponse.status).toBe(StatusCodes.CREATED);
+      const { id } = createResponse.body;
+
+      const publishResponse = await unauthorizedRequest
+        .put(articlesRoutes.update(id))
+        .set(commonHeaders)
+        .send({ status: 'published' });
+
+      expect(publishResponse.status).toBe(StatusCodes.OK);
+      expect(publishResponse.body.status).toBe('published');
+
+      const archiveResponse = await unauthorizedRequest
+        .put(articlesRoutes.update(id))
+        .set(commonHeaders)
+        .send({ status: 'archived' });
+
+      expect(archiveResponse.status).toBe(StatusCodes.OK);
+      expect(archiveResponse.body.status).toBe('archived');
+
+      await unauthorizedRequest.delete(articlesRoutes.delete(id)).set(commonHeaders);
+    });
+
+    it('should respond with UNPROCESSABLE_ENTITY for invalid status transition', async () => {
+      const createResponse = await unauthorizedRequest
+        .post(articlesRoutes.create)
+        .set(commonHeaders)
+        .send({ ...createArticleDto, status: 'published' });
+
+      expect(createResponse.status).toBe(StatusCodes.CREATED);
+      const { id } = createResponse.body;
+
+      const invalidTransitionResponse = await unauthorizedRequest
+        .put(articlesRoutes.update(id))
+        .set(commonHeaders)
+        .send({ status: 'draft' });
+
+      expect(invalidTransitionResponse.status).toBe(
+        StatusCodes.UNPROCESSABLE_ENTITY,
+      );
+      expect(invalidTransitionResponse.body.message).toContain(
+        'Invalid status transition',
+      );
+
+      await unauthorizedRequest.delete(articlesRoutes.delete(id)).set(commonHeaders);
+    });
   });
 
   describe('DELETE', () => {

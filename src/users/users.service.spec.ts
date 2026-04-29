@@ -1,10 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UserRole } from 'src/common/enums';
+import { ForbiddenError } from 'src/common/errors/forbidden.error';
+import { NotFoundError } from 'src/common/errors/not-found.error';
 
 vi.mock('bcrypt', () => ({
   hash: vi.fn(),
@@ -121,11 +122,11 @@ describe('UsersService', () => {
       expect(result?.updatedAt).toBe(2000);
     });
 
-    it('throws NotFoundException when user does not exist', async () => {
+    it('throws NotFoundError when user does not exist', async () => {
       prismaServiceMock.user.findUnique.mockResolvedValue(null);
 
       await expect(service.findOne('missing-id')).rejects.toBeInstanceOf(
-        NotFoundException,
+        NotFoundError,
       );
     });
   });
@@ -187,7 +188,7 @@ describe('UsersService', () => {
   });
 
   describe('updatePassword', () => {
-    it('throws NotFoundException when user is missing', async () => {
+    it('throws NotFoundError when user is missing', async () => {
       prismaServiceMock.user.findUnique.mockResolvedValue(null);
 
       await expect(
@@ -195,10 +196,10 @@ describe('UsersService', () => {
           oldPassword: 'old',
           newPassword: 'new',
         }),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toBeInstanceOf(NotFoundError);
     });
 
-    it('throws ForbiddenException when old password does not match', async () => {
+    it('throws ForbiddenError when old password does not match', async () => {
       prismaServiceMock.user.findUnique.mockResolvedValue(makeDbUser());
       vi.mocked(bcrypt.compare).mockResolvedValue(false as never);
 
@@ -207,10 +208,10 @@ describe('UsersService', () => {
           oldPassword: 'wrong',
           newPassword: 'new-pass',
         }),
-      ).rejects.toBeInstanceOf(ForbiddenException);
+      ).rejects.toBeInstanceOf(ForbiddenError);
     });
 
-    it('throws ForbiddenException when new password equals old password', async () => {
+    it('throws ForbiddenError when new password equals old password', async () => {
       prismaServiceMock.user.findUnique.mockResolvedValue(makeDbUser());
       vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
 
@@ -219,7 +220,7 @@ describe('UsersService', () => {
           oldPassword: 'same-pass',
           newPassword: 'same-pass',
         }),
-      ).rejects.toBeInstanceOf(ForbiddenException);
+      ).rejects.toBeInstanceOf(ForbiddenError);
     });
 
     it('updates password when old password is correct', async () => {
@@ -248,12 +249,12 @@ describe('UsersService', () => {
   });
 
   describe('updateRole', () => {
-    it('throws NotFoundException when user does not exist', async () => {
+    it('throws NotFoundError when user does not exist', async () => {
       prismaServiceMock.user.findUnique.mockResolvedValue(null);
 
       await expect(
         service.updateRole('missing-id', { role: UserRole.ADMIN }),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toBeInstanceOf(NotFoundError);
     });
 
     it('updates role when user exists', async () => {
@@ -279,11 +280,11 @@ describe('UsersService', () => {
   });
 
   describe('remove', () => {
-    it('throws NotFoundException when user does not exist', async () => {
+    it('throws NotFoundError when user does not exist', async () => {
       prismaServiceMock.user.findUnique.mockResolvedValue(null);
 
       await expect(service.remove('missing-id')).rejects.toBeInstanceOf(
-        NotFoundException,
+        NotFoundError,
       );
     });
 
