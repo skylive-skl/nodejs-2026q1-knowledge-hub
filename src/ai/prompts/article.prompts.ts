@@ -1,7 +1,4 @@
-import {
-  AnalyzeTaskOption,
-  SummaryLengthOption,
-} from '../dto';
+import { AnalyzeTaskOption, SummaryLengthOption } from '../dto';
 
 export function buildSummarizeArticlePrompt(
   title: string,
@@ -28,7 +25,9 @@ export function buildTranslateArticlePrompt(
   return [
     'You are translating a Knowledge Hub article.',
     `Target language: ${targetLanguage}.`,
-    sourceLanguage ? `Source language: ${sourceLanguage}.` : 'Detect the source language.',
+    sourceLanguage
+      ? `Source language: ${sourceLanguage}.`
+      : 'Detect the source language.',
     'Return only the translated article text.',
     `Title: ${title}`,
     'Content:',
