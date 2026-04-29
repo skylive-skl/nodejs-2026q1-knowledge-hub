@@ -34,3 +34,9 @@ export const authRoutes = {
   login: '/auth/login',
   refresh: '/auth/refresh',
 };
+
+export const aiRoutes = {
+  summarize: (articleId: string) => `/ai/articles/${articleId}/summarize`,
+  translate: (articleId: string) => `/ai/articles/${articleId}/translate`,
+  analyze: (articleId: string) => `/ai/articles/${articleId}/analyze`,
+};
