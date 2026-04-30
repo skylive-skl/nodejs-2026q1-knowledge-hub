@@ -5,11 +5,18 @@ import { GeminiService } from './gemini.service';
 import { AiUsageService } from './ai-usage.service';
 import { AiRateLimitGuard } from './guards/ai-rate-limit.guard';
 import { ArticleModule } from 'src/article/article.module';
+import { AppLoggerService } from 'src/common/logger/app-logger.service';
 
 @Module({
   imports: [ArticleModule],
   controllers: [AiController],
-  providers: [AiService, GeminiService, AiUsageService, AiRateLimitGuard],
+  providers: [
+    AiService,
+    GeminiService,
+    AiUsageService,
+    AiRateLimitGuard,
+    AppLoggerService,
+  ],
   exports: [AiService],
 })
 export class AiModule {}
