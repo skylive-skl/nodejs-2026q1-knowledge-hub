@@ -21,7 +21,10 @@ const makeArticle = (overrides: Partial<Article> = {}): Article => ({
 
 describe('AiService', () => {
   let service: AiService;
-  let geminiMock: { generateContent: ReturnType<typeof vi.fn> };
+  let geminiMock: {
+    generateContent: ReturnType<typeof vi.fn>;
+    generateJson: ReturnType<typeof vi.fn>;
+  };
   let articleServiceMock: { findOne: ReturnType<typeof vi.fn> };
   let usageMock: {
     record: ReturnType<typeof vi.fn>;
@@ -29,7 +32,7 @@ describe('AiService', () => {
   };
 
   beforeEach(() => {
-    geminiMock = { generateContent: vi.fn() };
+    geminiMock = { generateContent: vi.fn(), generateJson: vi.fn() };
     articleServiceMock = { findOne: vi.fn() };
     usageMock = { record: vi.fn(), getStats: vi.fn() };
 
@@ -168,17 +171,13 @@ describe('AiService', () => {
   describe('analyze', () => {
     it('parses structured Gemini response correctly', async () => {
       articleServiceMock.findOne.mockResolvedValue(makeArticle());
-      geminiMock.generateContent.mockResolvedValue({
-        text: [
-          'ANALYSIS:',
-          'The article is well-written.',
-          '',
-          'SUGGESTIONS:',
-          '- Add more examples',
-          '- Improve introduction',
-          '',
-          'SEVERITY: warning',
-        ].join('\n'),
+      geminiMock.generateJson.mockResolvedValue({
+        data: {
+          analysis: 'The article is well-written.',
+          suggestions: ['Add more examples', 'Improve introduction'],
+          severity: 'warning',
+        },
+        tokenUsage: undefined,
       });
 
       const result = await service.analyze('article-uuid-1', {});
@@ -189,10 +188,15 @@ describe('AiService', () => {
       expect(result.severity).toBe('warning');
     });
 
-    it('defaults severity to info when not detected', async () => {
+    it('defaults severity to info when not present in response', async () => {
       articleServiceMock.findOne.mockResolvedValue(makeArticle());
-      geminiMock.generateContent.mockResolvedValue({
-        text: 'No structured data here.',
+      geminiMock.generateJson.mockResolvedValue({
+        data: {
+          analysis: 'Some analysis.',
+          suggestions: [],
+          severity: undefined,
+        },
+        tokenUsage: undefined,
       });
 
       const result = await service.analyze('article-uuid-1', {});
@@ -202,17 +206,35 @@ describe('AiService', () => {
 
     it('defaults task to review when not provided', async () => {
       articleServiceMock.findOne.mockResolvedValue(makeArticle());
-      geminiMock.generateContent.mockResolvedValue({ text: 'ok' });
+      geminiMock.generateJson.mockResolvedValue({
+        data: { analysis: 'ok', suggestions: [], severity: 'info' },
+      });
 
       await service.analyze('article-uuid-1', {});
 
-      const prompt: string = geminiMock.generateContent.mock.calls[0][0];
+      const prompt: string = geminiMock.generateJson.mock.calls[0][0];
       expect(prompt).toContain('review');
+    });
+
+    it('passes ANALYZE_RESPONSE_SCHEMA as second argument to generateJson', async () => {
+      articleServiceMock.findOne.mockResolvedValue(makeArticle());
+      geminiMock.generateJson.mockResolvedValue({
+        data: { analysis: 'ok', suggestions: [], severity: 'info' },
+      });
+
+      await service.analyze('article-uuid-1', {});
+
+      const schema = geminiMock.generateJson.mock.calls[0][1];
+      expect(schema).toMatchObject({ type: 'object' });
+      expect(schema.required).toContain('severity');
     });
 
     it('records usage for analyze endpoint', async () => {
       articleServiceMock.findOne.mockResolvedValue(makeArticle());
-      geminiMock.generateContent.mockResolvedValue({ text: 'x' });
+      geminiMock.generateJson.mockResolvedValue({
+        data: { analysis: 'x', suggestions: [], severity: 'info' },
+        tokenUsage: undefined,
+      });
 
       await service.analyze('article-uuid-1', {});
 

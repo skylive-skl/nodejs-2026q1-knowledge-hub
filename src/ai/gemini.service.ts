@@ -21,6 +21,13 @@ export type GeminiResult = {
   tokenUsage?: TokenUsage;
 };
 
+export type GeminiJsonResult<T> = {
+  data: T;
+  tokenUsage?: TokenUsage;
+};
+
+type GenerationConfig = Record<string, unknown>;
+
 @Injectable()
 export class GeminiService {
   private readonly apiKey: string;
@@ -46,9 +53,28 @@ export class GeminiService {
   }
 
   async generateContent(prompt: string): Promise<GeminiResult> {
+    return this.generate(prompt);
+  }
+
+  async generateJson<T>(
+    prompt: string,
+    schema?: GenerationConfig,
+  ): Promise<GeminiJsonResult<T>> {
+    const generationConfig: GenerationConfig = {
+      response_mime_type: 'application/json',
+      ...(schema ? { response_schema: schema } : {}),
+    };
+    const { text, tokenUsage } = await this.generate(prompt, generationConfig);
+    const data = JSON.parse(text) as T;
+    return { data, tokenUsage };
+  }
+
+  private async generate(
+    prompt: string,
+    generationConfig?: GenerationConfig,
+  ): Promise<GeminiResult> {
     // API key is appended only to URL, never logged
     const url = `${this.baseUrl}/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
-    const body = { contents: [{ parts: [{ text: prompt }] }] };
 
     let lastError: unknown;
 
@@ -59,7 +85,11 @@ export class GeminiService {
       }
 
       try {
-        const result = await this.fetchWithTimeout(url, body);
+        const result = await this.fetchWithTimeout(
+          url,
+          prompt,
+          generationConfig,
+        );
         this.logger.log({ model: this.model, attempt }, 'GeminiService');
         return result;
       } catch (error) {
@@ -92,10 +122,16 @@ export class GeminiService {
 
   private async fetchWithTimeout(
     url: string,
-    body: object,
+    prompt: string,
+    generationConfig?: GenerationConfig,
   ): Promise<GeminiResult> {
     const controller = new AbortController();
     const timerId = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    const body: Record<string, unknown> = {
+      contents: [{ parts: [{ text: prompt }] }],
+      ...(generationConfig ? { generationConfig } : {}),
+    };
 
     let response: Response;
     try {

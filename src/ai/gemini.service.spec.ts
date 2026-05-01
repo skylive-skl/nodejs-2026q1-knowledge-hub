@@ -144,4 +144,76 @@ describe('GeminiService', () => {
       GeminiUnavailableError,
     );
   });
+
+  // ─── generateJson ─────────────────────────────────────────────────────────
+
+  describe('generateJson', () => {
+    it('returns parsed data and token usage on success', async () => {
+      const payload = {
+        analysis: 'ok',
+        suggestions: ['tip'],
+        severity: 'info',
+      };
+      fetchMock.mockResolvedValueOnce(
+        makeResponse(200, makeGeminiResponse(JSON.stringify(payload))),
+      );
+
+      const result = await service.generateJson<typeof payload>('prompt');
+
+      expect(result.data).toEqual(payload);
+      expect(result.tokenUsage).toEqual({
+        prompt: 10,
+        completion: 5,
+        total: 15,
+      });
+    });
+
+    it('sends response_mime_type application/json in generationConfig', async () => {
+      const payload = { analysis: 'x', suggestions: [], severity: 'info' };
+      fetchMock.mockResolvedValueOnce(
+        makeResponse(200, makeGeminiResponse(JSON.stringify(payload))),
+      );
+
+      await service.generateJson('prompt');
+
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+      expect(body.generationConfig?.response_mime_type).toBe(
+        'application/json',
+      );
+    });
+
+    it('sends response_schema when schema is provided', async () => {
+      const payload = { analysis: 'x', suggestions: [], severity: 'info' };
+      fetchMock.mockResolvedValueOnce(
+        makeResponse(200, makeGeminiResponse(JSON.stringify(payload))),
+      );
+      const schema = {
+        type: 'object',
+        properties: { analysis: { type: 'string' } },
+      };
+
+      await service.generateJson('prompt', schema);
+
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+      expect(body.generationConfig?.response_schema).toEqual(schema);
+    });
+
+    it('throws SyntaxError when Gemini returns invalid JSON', async () => {
+      fetchMock.mockResolvedValueOnce(
+        makeResponse(200, makeGeminiResponse('not-json')),
+      );
+
+      await expect(service.generateJson('prompt')).rejects.toBeInstanceOf(
+        SyntaxError,
+      );
+    });
+
+    it('propagates GeminiUnavailableError from underlying generate call', async () => {
+      fetchMock.mockResolvedValue(makeResponse(500, {}));
+
+      await expect(service.generateJson('prompt')).rejects.toBeInstanceOf(
+        GeminiUnavailableError,
+      );
+    });
+  });
 });

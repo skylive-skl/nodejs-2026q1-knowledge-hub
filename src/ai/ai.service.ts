@@ -25,6 +25,22 @@ type CacheEntry = {
   expiresAt: number;
 };
 
+type AnalyzeJsonResult = {
+  analysis: string;
+  suggestions: string[];
+  severity: AnalyzeArticleSeverity;
+};
+
+const ANALYZE_RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    analysis: { type: 'string' },
+    suggestions: { type: 'array', items: { type: 'string' } },
+    severity: { type: 'string', enum: ['info', 'warning', 'error'] },
+  },
+  required: ['analysis', 'suggestions', 'severity'],
+} as const;
+
 @Injectable()
 export class AiService {
   private readonly cache = new Map<string, CacheEntry>();
@@ -132,36 +148,19 @@ export class AiService {
       article.content,
       task,
     );
-    const { text, tokenUsage } = await this.gemini.generateContent(prompt);
+    const { data, tokenUsage } =
+      await this.gemini.generateJson<AnalyzeJsonResult>(
+        prompt,
+        ANALYZE_RESPONSE_SCHEMA,
+      );
 
-    const result = this.parseAnalyzeResponse(articleId, text);
+    const result: AnalyzeArticleResponse = {
+      articleId,
+      analysis: data.analysis,
+      suggestions: data.suggestions,
+      severity: data.severity ?? 'info',
+    };
     this.usage.record('analyze', tokenUsage);
     return result;
-  }
-
-  private parseAnalyzeResponse(
-    articleId: string,
-    raw: string,
-  ): AnalyzeArticleResponse {
-    const severityMatch = raw.match(/^SEVERITY:\s*(info|warning|error)/im);
-    const severity: AnalyzeArticleSeverity =
-      (severityMatch?.[1]?.toLowerCase() as AnalyzeArticleSeverity) ?? 'info';
-
-    const suggestionsSection = raw.match(
-      /^SUGGESTIONS:\s*\n([\s\S]*?)(?=\n[A-Z]+:|$)/im,
-    );
-    const suggestions = suggestionsSection
-      ? suggestionsSection[1]
-          .split('\n')
-          .map((l) => l.replace(/^[-*•]\s*/, '').trim())
-          .filter(Boolean)
-      : [];
-
-    const analysisSection = raw.match(
-      /^ANALYSIS:\s*\n([\s\S]*?)(?=\n[A-Z]+:)/im,
-    );
-    const analysis = analysisSection ? analysisSection[1].trim() : raw.trim();
-
-    return { articleId, analysis, suggestions, severity };
   }
 }
