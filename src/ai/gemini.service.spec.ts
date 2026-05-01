@@ -72,6 +72,22 @@ describe('GeminiService', () => {
     expect(result.tokenUsage).toEqual({ prompt: 10, completion: 5, total: 15 });
   });
 
+  it('sends API key via x-goog-api-key header and not URL query', async () => {
+    fetchMock.mockResolvedValueOnce(
+      makeResponse(200, makeGeminiResponse('Generated text')),
+    );
+
+    await service.generateContent('test prompt');
+
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+
+    expect(url).toBe('https://api.gemini.test/v1beta/models/gemini-test:generateContent');
+    expect(url).not.toContain('?key=');
+    expect((options.headers as Record<string, string>)['x-goog-api-key']).toBe(
+      'test-key',
+    );
+  });
+
   it('returns empty text when candidates list is empty', async () => {
     fetchMock.mockResolvedValueOnce(makeResponse(200, { candidates: [] }));
 

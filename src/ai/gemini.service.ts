@@ -73,8 +73,7 @@ export class GeminiService {
     prompt: string,
     generationConfig?: GenerationConfig,
   ): Promise<GeminiResult> {
-    // API key is appended only to URL, never logged
-    const url = `${this.baseUrl}/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
+    const url = `${this.baseUrl}/v1beta/models/${this.model}:generateContent`;
 
     let lastError: unknown;
 
@@ -137,7 +136,10 @@ export class GeminiService {
     try {
       response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': this.apiKey,
+        },
         body: JSON.stringify(body),
         signal: controller.signal,
       });
