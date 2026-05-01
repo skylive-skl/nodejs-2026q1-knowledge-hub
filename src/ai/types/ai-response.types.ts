@@ -7,7 +7,8 @@ export type SummarizeArticleResponse = {
 
 export type TranslateArticleResponse = {
   articleId: string;
-  translatedText: string;
+  translatedTitle: string;
+  translatedContent: string;
   detectedLanguage: string;
 };
 

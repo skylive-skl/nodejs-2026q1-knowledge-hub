@@ -28,7 +28,9 @@ export function buildTranslateArticlePrompt(
     sourceLanguage
       ? `Source language: ${sourceLanguage}.`
       : 'Detect the source language.',
-    'Return only the translated article text.',
+    'Return a valid JSON object only. Do not include markdown or any text outside JSON.',
+    'JSON schema:',
+    '{"translatedTitle": string, "translatedContent": string}',
     `Title: ${title}`,
     'Content:',
     content,

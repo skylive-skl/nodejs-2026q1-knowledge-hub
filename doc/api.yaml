@@ -155,15 +155,19 @@ components:
         articleId:
           type: string
           format: uuid
-        translatedText:
+        translatedTitle:
           type: string
-          example: 'Переведённый текст статьи.'
+          example: 'Начало работы с NestJS'
+        translatedContent:
+          type: string
+          example: 'NestJS — это прогрессивный фреймворк Node.js для создания эффективных серверных приложений.'
         detectedLanguage:
           type: string
           example: en
       required:
         - articleId
-        - translatedText
+        - translatedTitle
+        - translatedContent
         - detectedLanguage
     AnalyzeArticleRequest:
       type: object

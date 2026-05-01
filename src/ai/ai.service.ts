@@ -31,6 +31,11 @@ type AnalyzeJsonResult = {
   severity: AnalyzeArticleSeverity;
 };
 
+type TranslateJsonResult = {
+  translatedTitle: string;
+  translatedContent: string;
+};
+
 const ANALYZE_RESPONSE_SCHEMA = {
   type: 'object',
   properties: {
@@ -39,6 +44,15 @@ const ANALYZE_RESPONSE_SCHEMA = {
     severity: { type: 'string', enum: ['info', 'warning', 'error'] },
   },
   required: ['analysis', 'suggestions', 'severity'],
+} as const;
+
+const TRANSLATE_RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    translatedTitle: { type: 'string' },
+    translatedContent: { type: 'string' },
+  },
+  required: ['translatedTitle', 'translatedContent'],
 } as const;
 
 @Injectable()
@@ -123,11 +137,16 @@ export class AiService {
       dto.targetLanguage,
       dto.sourceLanguage,
     );
-    const { text, tokenUsage } = await this.gemini.generateContent(prompt);
+    const { data, tokenUsage } =
+      await this.gemini.generateJson<TranslateJsonResult>(
+        prompt,
+        TRANSLATE_RESPONSE_SCHEMA,
+      );
 
     const result: TranslateArticleResponse = {
       articleId,
-      translatedText: text.trim(),
+      translatedTitle: data.translatedTitle.trim(),
+      translatedContent: data.translatedContent.trim(),
       detectedLanguage: dto.sourceLanguage ?? 'auto',
     };
 

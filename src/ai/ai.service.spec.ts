@@ -130,8 +130,11 @@ describe('AiService', () => {
   describe('translate', () => {
     it('returns translation response with correct shape', async () => {
       articleServiceMock.findOne.mockResolvedValue(makeArticle());
-      geminiMock.generateContent.mockResolvedValue({
-        text: ' Translated text ',
+      geminiMock.generateJson.mockResolvedValue({
+        data: {
+          translatedTitle: ' Переведенный заголовок ',
+          translatedContent: ' Переведенный текст ',
+        },
       });
 
       const result = await service.translate('article-uuid-1', {
@@ -139,13 +142,19 @@ describe('AiService', () => {
       });
 
       expect(result.articleId).toBe('article-uuid-1');
-      expect(result.translatedText).toBe('Translated text');
+      expect(result.translatedTitle).toBe('Переведенный заголовок');
+      expect(result.translatedContent).toBe('Переведенный текст');
       expect(result.detectedLanguage).toBe('auto');
     });
 
     it('uses sourceLanguage when provided', async () => {
       articleServiceMock.findOne.mockResolvedValue(makeArticle());
-      geminiMock.generateContent.mockResolvedValue({ text: 'ok' });
+      geminiMock.generateJson.mockResolvedValue({
+        data: {
+          translatedTitle: 'Titel',
+          translatedContent: 'Inhalt',
+        },
+      });
 
       const result = await service.translate('article-uuid-1', {
         targetLanguage: 'de',
@@ -157,12 +166,17 @@ describe('AiService', () => {
 
     it('returns cached result on second call', async () => {
       articleServiceMock.findOne.mockResolvedValue(makeArticle());
-      geminiMock.generateContent.mockResolvedValue({ text: 'cached' });
+      geminiMock.generateJson.mockResolvedValue({
+        data: {
+          translatedTitle: 'Titulo',
+          translatedContent: 'Contenido',
+        },
+      });
 
       await service.translate('article-uuid-1', { targetLanguage: 'es' });
       await service.translate('article-uuid-1', { targetLanguage: 'es' });
 
-      expect(geminiMock.generateContent).toHaveBeenCalledTimes(1);
+      expect(geminiMock.generateJson).toHaveBeenCalledTimes(1);
     });
   });
 
