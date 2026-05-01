@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppLoggerService } from 'src/common/logger/app-logger.service';
 import { GeminiAuthError } from './errors/gemini-auth.error';
+import { GeminiRateLimitError } from './errors/gemini-rate-limit.error';
 import { GeminiUnavailableError } from './errors/gemini-unavailable.error';
 import { TokenUsage } from './ai-usage.service';
 
@@ -46,10 +47,28 @@ export class GeminiService {
       this.config.get<string>('GEMINI_API_BASE_URL') ??
       'https://generativelanguage.googleapis.com';
     this.model = this.config.get<string>('GEMINI_MODEL') ?? 'gemini-2.0-flash';
-    this.timeoutMs = this.config.get<number>('AI_HTTP_TIMEOUT_MS') ?? 15000;
-    this.retryCount = this.config.get<number>('AI_RETRY_COUNT') ?? 3;
-    this.retryBaseDelayMs =
-      this.config.get<number>('AI_RETRY_BASE_DELAY_MS') ?? 300;
+    this.timeoutMs = this.readPositiveNumber('AI_HTTP_TIMEOUT_MS', 15000);
+    this.retryCount = this.readPositiveNumber('AI_RETRY_COUNT', 3);
+    this.retryBaseDelayMs = this.readPositiveNumber(
+      'AI_RETRY_BASE_DELAY_MS',
+      300,
+    );
+
+    if (!this.apiKey.trim()) {
+      throw new Error('Missing required environment variable: GEMINI_API_KEY');
+    }
+
+    this.logger.log(
+      {
+        model: this.model,
+        baseUrl: this.baseUrl,
+        timeoutMs: this.timeoutMs,
+        retryCount: this.retryCount,
+        retryBaseDelayMs: this.retryBaseDelayMs,
+        hasApiKey: true,
+      },
+      'GeminiService',
+    );
   }
 
   async generateContent(prompt: string): Promise<GeminiResult> {
@@ -89,10 +108,14 @@ export class GeminiService {
           prompt,
           generationConfig,
         );
+
         this.logger.log({ model: this.model, attempt }, 'GeminiService');
         return result;
       } catch (error) {
-        if (error instanceof GeminiAuthError) {
+        if (
+          error instanceof GeminiAuthError ||
+          error instanceof GeminiRateLimitError
+        ) {
           throw error;
         }
 
@@ -110,6 +133,7 @@ export class GeminiService {
         }
 
         throw error instanceof GeminiUnavailableError ||
+          error instanceof GeminiRateLimitError ||
           error instanceof GeminiAuthError
           ? error
           : new GeminiUnavailableError('AI service network error');
@@ -156,7 +180,15 @@ export class GeminiService {
       throw new GeminiAuthError();
     }
 
-    if (response.status === 429 || response.status >= 500) {
+    if (response.status === 429) {
+      const retryAfterHeader = response.headers.get('retry-after');
+      const retryAfterSec = retryAfterHeader
+        ? Number.parseInt(retryAfterHeader, 10)
+        : undefined;
+      throw new GeminiRateLimitError(retryAfterSec);
+    }
+
+    if (response.status >= 500) {
       throw new GeminiUnavailableError(
         `Gemini API returned upstream error ${response.status}`,
       );
@@ -186,5 +218,19 @@ export class GeminiService {
 
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private readPositiveNumber(key: string, fallback: number): number {
+    const raw = this.config.get<number | string>(key);
+    if (raw === undefined || raw === null || raw === '') {
+      return fallback;
+    }
+
+    const value = Number.parseInt(String(raw), 10);
+    if (!Number.isFinite(value) || Number.isNaN(value) || value <= 0) {
+      throw new Error(`Environment variable ${key} must be a positive integer`);
+    }
+
+    return value;
   }
 }

@@ -2,10 +2,18 @@ import { GeminiService } from './gemini.service';
 import { AppLoggerService } from 'src/common/logger/app-logger.service';
 import { GeminiUnavailableError } from './errors/gemini-unavailable.error';
 import { GeminiAuthError } from './errors/gemini-auth.error';
+import { GeminiRateLimitError } from './errors/gemini-rate-limit.error';
 
-const makeResponse = (status: number, data: object) => ({
+const makeResponse = (
+  status: number,
+  data: object,
+  headers?: Record<string, string>,
+) => ({
   ok: status >= 200 && status < 300,
   status,
+  headers: {
+    get: vi.fn((name: string) => headers?.[name.toLowerCase()] ?? null),
+  },
   json: vi.fn().mockResolvedValue(data),
 });
 
@@ -114,14 +122,23 @@ describe('GeminiService', () => {
     );
   });
 
-  it('retries on 429 and throws GeminiUnavailableError after exhaustion', async () => {
+  it('throws GeminiRateLimitError on 429 without retries', async () => {
     fetchMock.mockResolvedValue(makeResponse(429, {}));
 
     await expect(service.generateContent('prompt')).rejects.toBeInstanceOf(
-      GeminiUnavailableError,
+      GeminiRateLimitError,
     );
-    // initial attempt + 2 retries = 3 calls
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('includes retry hint when 429 has Retry-After header', async () => {
+    fetchMock.mockResolvedValueOnce(
+      makeResponse(429, {}, { 'retry-after': '17' }),
+    );
+
+    await expect(service.generateContent('prompt')).rejects.toThrow(
+      'Retry after 17s.',
+    );
   });
 
   it('retries on 500 and throws GeminiUnavailableError after exhaustion', async () => {
