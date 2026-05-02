@@ -1,6 +1,7 @@
 import { AiService } from './ai.service';
 import { GeminiService } from './gemini.service';
 import { AiUsageService } from './ai-usage.service';
+import { AiSessionService } from './ai-session.service';
 import { ArticleService } from 'src/article/article.service';
 import { NotFoundError } from 'src/common/errors/not-found.error';
 import { ArticleStatus } from 'src/common/enums';
@@ -30,11 +31,16 @@ describe('AiService', () => {
     record: ReturnType<typeof vi.fn>;
     getStats: ReturnType<typeof vi.fn>;
   };
+  let sessionMock: {
+    getSession: ReturnType<typeof vi.fn>;
+    setSession: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     geminiMock = { generateContent: vi.fn(), generateJson: vi.fn() };
     articleServiceMock = { findOne: vi.fn() };
     usageMock = { record: vi.fn(), getStats: vi.fn() };
+    sessionMock = { getSession: vi.fn().mockReturnValue([]), setSession: vi.fn() };
 
     const config = { get: vi.fn().mockReturnValue(300) } as any;
 
@@ -43,6 +49,7 @@ describe('AiService', () => {
       geminiMock as unknown as GeminiService,
       usageMock as unknown as AiUsageService,
       config,
+      sessionMock as unknown as AiSessionService,
     );
   });
 
@@ -252,7 +259,7 @@ describe('AiService', () => {
 
       await service.analyze('article-uuid-1', {});
 
-      expect(usageMock.record).toHaveBeenCalledWith('analyze', undefined);
+      expect(usageMock.record).toHaveBeenCalledWith('analyze', expect.any(Object));
     });
   });
 });

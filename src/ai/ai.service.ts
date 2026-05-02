@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { ArticleService } from 'src/article/article.service';
 import { GeminiService, GeminiContent } from './gemini.service';
 import { AiUsageService, TokenUsage } from './ai-usage.service';
+import { AiSessionService } from './ai-session.service';
+import { TtlCache } from './ttl-cache';
 import {
   buildSummarizeArticlePrompt,
   buildTranslateArticlePrompt,
@@ -20,16 +22,6 @@ import {
   SummarizeArticleResponse,
   TranslateArticleResponse,
 } from './types/ai-response.types';
-
-type CacheEntry = {
-  value: unknown;
-  expiresAt: number;
-};
-
-type SessionEntry = {
-  history: GeminiContent[];
-  expiresAt: number;
-};
 
 type AnalyzeJsonResult = {
   analysis: string;
@@ -63,32 +55,17 @@ const TRANSLATE_RESPONSE_SCHEMA = {
 
 @Injectable()
 export class AiService {
-  private readonly cache = new Map<string, CacheEntry>();
-  private readonly sessions = new Map<string, SessionEntry>();
-  private readonly cacheTtlMs: number;
+  private readonly cache: TtlCache<unknown>;
 
   constructor(
     private readonly articleService: ArticleService,
     private readonly gemini: GeminiService,
     private readonly usage: AiUsageService,
     private readonly config: ConfigService,
+    private readonly sessions: AiSessionService,
   ) {
     const ttlSec = this.config.get<number>('AI_CACHE_TTL_SEC') ?? 300;
-    this.cacheTtlMs = ttlSec * 1000;
-  }
-
-  private getFromCache<T>(key: string): T | null {
-    const entry = this.cache.get(key);
-    if (!entry) return null;
-    if (Date.now() > entry.expiresAt) {
-      this.cache.delete(key);
-      return null;
-    }
-    return entry.value as T;
-  }
-
-  private setCache(key: string, value: unknown): void {
-    this.cache.set(key, { value, expiresAt: Date.now() + this.cacheTtlMs });
+    this.cache = new TtlCache<unknown>(ttlSec * 1000);
   }
 
   async summarize(
@@ -99,7 +76,7 @@ export class AiService {
     const article = await this.articleService.findOne(articleId);
 
     const cacheKey = `summarize:${articleId}:${maxLength}:${article.updatedAt}`;
-    const cached = this.getFromCache<SummarizeArticleResponse>(cacheKey);
+    const cached = this.cache.get(cacheKey) as SummarizeArticleResponse | null;
     if (cached) {
       this.usage.record('summarize', { cacheHit: true });
       return cached;
@@ -122,7 +99,7 @@ export class AiService {
       summaryLength: summary.length,
     };
 
-    this.setCache(cacheKey, result);
+    this.cache.set(cacheKey, result);
     this.usage.record('summarize', { tokens: tokenUsage, latencyMs });
     return result;
   }
@@ -134,7 +111,7 @@ export class AiService {
     const article = await this.articleService.findOne(articleId);
 
     const cacheKey = `translate:${articleId}:${dto.targetLanguage}:${dto.sourceLanguage ?? ''}:${article.updatedAt}`;
-    const cached = this.getFromCache<TranslateArticleResponse>(cacheKey);
+    const cached = this.cache.get(cacheKey) as TranslateArticleResponse | null;
     if (cached) {
       this.usage.record('translate', { cacheHit: true });
       return cached;
@@ -161,7 +138,7 @@ export class AiService {
       detectedLanguage: dto.sourceLanguage ?? 'auto',
     };
 
-    this.setCache(cacheKey, result);
+    this.cache.set(cacheKey, result);
     this.usage.record('translate', { tokens: tokenUsage, latencyMs });
     return result;
   }
@@ -202,13 +179,13 @@ export class AiService {
     let result: { text: string; tokenUsage?: TokenUsage };
 
     if (dto.sessionId) {
-      const session = this.getSession(dto.sessionId);
+      const history = this.sessions.getSession(dto.sessionId);
       const contents: GeminiContent[] = [
-        ...session,
+        ...history,
         { role: 'user', parts: [{ text: dto.prompt }] },
       ];
       result = await this.gemini.generateWithHistory(contents);
-      this.setSession(dto.sessionId, [
+      this.sessions.setSession(dto.sessionId, [
         ...contents,
         { role: 'model', parts: [{ text: result.text.trim() }] },
       ]);
@@ -219,21 +196,5 @@ export class AiService {
     const latencyMs = Date.now() - start;
     this.usage.record('generate', { tokens: result.tokenUsage, latencyMs });
     return { text: result.text.trim() };
-  }
-
-  private getSession(sessionId: string): GeminiContent[] {
-    const entry = this.sessions.get(sessionId);
-    if (!entry || Date.now() > entry.expiresAt) {
-      this.sessions.delete(sessionId);
-      return [];
-    }
-    return entry.history;
-  }
-
-  private setSession(sessionId: string, history: GeminiContent[]): void {
-    this.sessions.set(sessionId, {
-      history,
-      expiresAt: Date.now() + this.cacheTtlMs,
-    });
   }
 }
