@@ -36,6 +36,7 @@ export const authRoutes = {
 };
 
 export const aiRoutes = {
+  usage: '/ai/usage',
   summarize: (articleId: string) => `/ai/articles/${articleId}/summarize`,
   translate: (articleId: string) => `/ai/articles/${articleId}/translate`,
   analyze: (articleId: string) => `/ai/articles/${articleId}/analyze`,

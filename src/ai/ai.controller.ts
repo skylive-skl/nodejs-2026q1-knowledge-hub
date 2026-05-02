@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
@@ -8,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AiService } from './ai.service';
+import { AiUsageService } from './ai-usage.service';
 import {
   AiArticleParamDto,
   AnalyzeArticleRequestDto,
@@ -20,7 +22,16 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 @UseGuards(JwtAuthGuard, AiRateLimitGuard)
 @Controller('ai')
 export class AiController {
-  constructor(private readonly aiService: AiService) {}
+  constructor(
+    private readonly aiService: AiService,
+    private readonly usageService: AiUsageService,
+  ) {}
+
+  @Get('usage')
+  @UseGuards(JwtAuthGuard)
+  getUsage() {
+    return this.usageService.getStats();
+  }
 
   @Post('articles/:articleId/summarize')
   @HttpCode(HttpStatus.OK)
