@@ -64,13 +64,24 @@ For more information about OpenAPI/Swagger please visit https://swagger.io/.
 Build and start containers:
 
 ```bash
-docker-compose up --build
+docker compose up -d --build
 ```
 
 Run Adminer (optional debug profile):
 
 ```bash
-docker-compose --profile debug up --build
+docker compose --profile debug up -d --build
+```
+
+On each app container start:
+- Prisma migrations are applied automatically with `prisma migrate deploy`.
+- Seed runs only when database is empty.
+
+If you keep `postgres-data` volume, seed is skipped on subsequent restarts.
+To reseed from scratch, remove volumes first:
+
+```bash
+docker compose down -v
 ```
 
 After startup:

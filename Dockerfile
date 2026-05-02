@@ -20,18 +20,21 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN apk add --no-cache libstdc++ \
   && apk add --no-cache --virtual .node-gyp python3 make g++ \
-  && npm ci --omit=dev \
+  && npm ci --include=dev \
   && npm cache clean --force \
   && apk del .node-gyp
 
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/doc ./doc
+COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=build /app/scripts ./scripts
 
-RUN chown -R node:node /app
+RUN chmod +x ./scripts/docker-entrypoint.sh \
+  && chown -R node:node /app
 
 USER node
 
 EXPOSE 4000
 
-CMD ["node", "dist/src/main"]
+CMD ["sh", "./scripts/docker-entrypoint.sh"]
