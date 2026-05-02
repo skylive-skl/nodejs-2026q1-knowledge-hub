@@ -94,7 +94,7 @@ export class AiService {
     const cacheKey = `summarize:${articleId}:${maxLength}:${article.updatedAt}`;
     const cached = this.getFromCache<SummarizeArticleResponse>(cacheKey);
     if (cached) {
-      this.usage.record('summarize');
+      this.usage.record('summarize', { cacheHit: true });
       return cached;
     }
 
@@ -103,7 +103,9 @@ export class AiService {
       article.content,
       maxLength,
     );
+    const start = Date.now();
     const { text, tokenUsage } = await this.gemini.generateContent(prompt);
+    const latencyMs = Date.now() - start;
 
     const summary = text.trim();
     const result: SummarizeArticleResponse = {
@@ -114,7 +116,7 @@ export class AiService {
     };
 
     this.setCache(cacheKey, result);
-    this.usage.record('summarize', tokenUsage);
+    this.usage.record('summarize', { tokens: tokenUsage, latencyMs });
     return result;
   }
 
@@ -127,7 +129,7 @@ export class AiService {
     const cacheKey = `translate:${articleId}:${dto.targetLanguage}:${dto.sourceLanguage ?? ''}:${article.updatedAt}`;
     const cached = this.getFromCache<TranslateArticleResponse>(cacheKey);
     if (cached) {
-      this.usage.record('translate');
+      this.usage.record('translate', { cacheHit: true });
       return cached;
     }
 
@@ -137,11 +139,13 @@ export class AiService {
       dto.targetLanguage,
       dto.sourceLanguage,
     );
+    const start = Date.now();
     const { data, tokenUsage } =
       await this.gemini.generateJson<TranslateJsonResult>(
         prompt,
         TRANSLATE_RESPONSE_SCHEMA,
       );
+    const latencyMs = Date.now() - start;
 
     const result: TranslateArticleResponse = {
       articleId,
@@ -151,7 +155,7 @@ export class AiService {
     };
 
     this.setCache(cacheKey, result);
-    this.usage.record('translate', tokenUsage);
+    this.usage.record('translate', { tokens: tokenUsage, latencyMs });
     return result;
   }
 
@@ -167,11 +171,13 @@ export class AiService {
       article.content,
       task,
     );
+    const start = Date.now();
     const { data, tokenUsage } =
       await this.gemini.generateJson<AnalyzeJsonResult>(
         prompt,
         ANALYZE_RESPONSE_SCHEMA,
       );
+    const latencyMs = Date.now() - start;
 
     const result: AnalyzeArticleResponse = {
       articleId,
@@ -179,7 +185,7 @@ export class AiService {
       suggestions: data.suggestions,
       severity: data.severity ?? 'info',
     };
-    this.usage.record('analyze', tokenUsage);
+    this.usage.record('analyze', { tokens: tokenUsage, latencyMs });
     return result;
   }
 }

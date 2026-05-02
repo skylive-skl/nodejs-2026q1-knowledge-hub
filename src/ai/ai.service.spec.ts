@@ -111,7 +111,7 @@ describe('AiService', () => {
       await service.summarize('article-uuid-1', {});
 
       expect(usageMock.record).toHaveBeenCalledTimes(2);
-      expect(usageMock.record).toHaveBeenCalledWith('summarize', undefined);
+      expect(usageMock.record).toHaveBeenCalledWith('summarize', expect.any(Object));
     });
 
     it('throws NotFoundError when article does not exist', async () => {
