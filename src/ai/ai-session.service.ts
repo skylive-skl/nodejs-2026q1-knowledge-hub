@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GeminiContent } from './gemini.service';
+import { GeminiContent } from './types/gemini.types';
 import { TtlCache } from './ttl-cache';
 
 @Injectable()

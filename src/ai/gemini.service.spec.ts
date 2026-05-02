@@ -1,39 +1,20 @@
 import { GeminiService } from './gemini.service';
+import { GeminiHttpClient } from './gemini-http.client';
 import { AppLoggerService } from 'src/common/logger/app-logger.service';
 import { GeminiUnavailableError } from './errors/gemini-unavailable.error';
 import { GeminiAuthError } from './errors/gemini-auth.error';
 import { GeminiRateLimitError } from './errors/gemini-rate-limit.error';
+import { GeminiResult } from './types/gemini.types';
 
-const makeResponse = (
-  status: number,
-  data: object,
-  headers?: Record<string, string>,
-) => ({
-  ok: status >= 200 && status < 300,
-  status,
-  headers: {
-    get: vi.fn((name: string) => headers?.[name.toLowerCase()] ?? null),
-  },
-  json: vi.fn().mockResolvedValue(data),
-});
-
-const makeGeminiResponse = (text: string) => ({
-  candidates: [{ content: { parts: [{ text }] } }],
-  usageMetadata: {
-    promptTokenCount: 10,
-    candidatesTokenCount: 5,
-    totalTokenCount: 15,
-  },
-});
+const SUCCESS_RESULT: GeminiResult = {
+  text: 'Generated text',
+  tokenUsage: { prompt: 10, completion: 5, total: 15 },
+};
 
 const makeService = (overrides: Record<string, unknown> = {}) => {
   const config = {
     get: vi.fn((key: string) => {
       const defaults: Record<string, unknown> = {
-        GEMINI_API_KEY: 'test-key',
-        GEMINI_API_BASE_URL: 'https://api.gemini.test',
-        GEMINI_MODEL: 'gemini-test',
-        AI_HTTP_TIMEOUT_MS: 5000,
         AI_RETRY_COUNT: 2,
         AI_RETRY_BASE_DELAY_MS: 1,
         ...overrides,
@@ -48,31 +29,30 @@ const makeService = (overrides: Record<string, unknown> = {}) => {
     error: vi.fn(),
   } as unknown as AppLoggerService;
 
-  return new GeminiService(config, logger);
+  const httpClient = {
+    call: vi.fn(),
+    modelName: 'gemini-test',
+  } as unknown as GeminiHttpClient;
+
+  return { service: new GeminiService(config, logger, httpClient), httpClient };
 };
 
 describe('GeminiService', () => {
   let service: GeminiService;
-  let fetchMock: ReturnType<typeof vi.fn>;
+  let httpClient: { call: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
-    fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-    service = makeService();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
+    const result = makeService();
+    service = result.service;
+    httpClient = result.httpClient as any;
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
-  it('returns text and token usage on success', async () => {
-    fetchMock.mockResolvedValueOnce(
-      makeResponse(200, makeGeminiResponse('Generated text')),
-    );
+  it('returns result from httpClient on success', async () => {
+    httpClient.call.mockResolvedValueOnce(SUCCESS_RESULT);
 
     const result = await service.generateContent('test prompt');
 
@@ -80,100 +60,72 @@ describe('GeminiService', () => {
     expect(result.tokenUsage).toEqual({ prompt: 10, completion: 5, total: 15 });
   });
 
-  it('sends API key via x-goog-api-key header and not URL query', async () => {
-    fetchMock.mockResolvedValueOnce(
-      makeResponse(200, makeGeminiResponse('Generated text')),
-    );
+  it('passes contents to httpClient.call for generateContent', async () => {
+    httpClient.call.mockResolvedValueOnce(SUCCESS_RESULT);
 
-    await service.generateContent('test prompt');
+    await service.generateContent('hello');
 
-    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
-
-    expect(url).toBe(
-      'https://api.gemini.test/v1beta/models/gemini-test:generateContent',
-    );
-    expect(url).not.toContain('?key=');
-    expect((options.headers as Record<string, string>)['x-goog-api-key']).toBe(
-      'test-key',
+    expect(httpClient.call).toHaveBeenCalledWith(
+      [{ role: 'user', parts: [{ text: 'hello' }] }],
+      undefined,
     );
   });
 
-  it('returns empty text when candidates list is empty', async () => {
-    fetchMock.mockResolvedValueOnce(makeResponse(200, { candidates: [] }));
+  it('passes history to httpClient.call for generateWithHistory', async () => {
+    httpClient.call.mockResolvedValueOnce(SUCCESS_RESULT);
+    const history = [
+      { role: 'user' as const, parts: [{ text: 'hi' }] as [{ text: string }] },
+      { role: 'model' as const, parts: [{ text: 'hello' }] as [{ text: string }] },
+    ];
 
-    const result = await service.generateContent('prompt');
-    expect(result.text).toBe('');
-    expect(result.tokenUsage).toBeUndefined();
+    await service.generateWithHistory(history);
+
+    expect(httpClient.call).toHaveBeenCalledWith(history, undefined);
   });
 
-  it('throws GeminiAuthError on 401', async () => {
-    fetchMock.mockResolvedValueOnce(makeResponse(401, {}));
+  // ─── Retry behaviour ─────────────────────────────────────────────────────
+
+  it('throws GeminiAuthError immediately without retrying', async () => {
+    httpClient.call.mockRejectedValue(new GeminiAuthError());
 
     await expect(service.generateContent('prompt')).rejects.toBeInstanceOf(
       GeminiAuthError,
     );
+    expect(httpClient.call).toHaveBeenCalledTimes(1);
   });
 
-  it('throws GeminiAuthError on 403', async () => {
-    fetchMock.mockResolvedValueOnce(makeResponse(403, {}));
-
-    await expect(service.generateContent('prompt')).rejects.toBeInstanceOf(
-      GeminiAuthError,
-    );
-  });
-
-  it('throws GeminiRateLimitError on 429 without retries', async () => {
-    fetchMock.mockResolvedValue(makeResponse(429, {}));
+  it('throws GeminiRateLimitError immediately without retrying', async () => {
+    httpClient.call.mockRejectedValue(new GeminiRateLimitError());
 
     await expect(service.generateContent('prompt')).rejects.toBeInstanceOf(
       GeminiRateLimitError,
     );
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(httpClient.call).toHaveBeenCalledTimes(1);
   });
 
-  it('includes retry hint when 429 has Retry-After header', async () => {
-    fetchMock.mockResolvedValueOnce(
-      makeResponse(429, {}, { 'retry-after': '17' }),
-    );
-
-    await expect(service.generateContent('prompt')).rejects.toThrow(
-      'Retry after 17s.',
-    );
-  });
-
-  it('retries on 500 and throws GeminiUnavailableError after exhaustion', async () => {
-    fetchMock.mockResolvedValue(makeResponse(500, {}));
+  it('retries on GeminiUnavailableError and throws after exhaustion', async () => {
+    httpClient.call.mockRejectedValue(new GeminiUnavailableError('upstream'));
 
     await expect(service.generateContent('prompt')).rejects.toBeInstanceOf(
       GeminiUnavailableError,
     );
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    // retryCount=2 means 1 initial + 2 retries = 3 total
+    expect(httpClient.call).toHaveBeenCalledTimes(3);
   });
 
-  it('succeeds on second attempt after 500', async () => {
-    fetchMock
-      .mockResolvedValueOnce(makeResponse(500, {}))
-      .mockResolvedValueOnce(makeResponse(200, makeGeminiResponse('ok')));
+  it('succeeds on second attempt after GeminiUnavailableError', async () => {
+    httpClient.call
+      .mockRejectedValueOnce(new GeminiUnavailableError('upstream'))
+      .mockResolvedValueOnce(SUCCESS_RESULT);
 
     const result = await service.generateContent('prompt');
-    expect(result.text).toBe('ok');
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    expect(result.text).toBe('Generated text');
+    expect(httpClient.call).toHaveBeenCalledTimes(2);
   });
 
-  it('throws GeminiUnavailableError on AbortError (timeout)', async () => {
-    const abortError = new DOMException(
-      'The operation was aborted.',
-      'AbortError',
-    );
-    fetchMock.mockRejectedValue(abortError);
-
-    await expect(service.generateContent('prompt')).rejects.toBeInstanceOf(
-      GeminiUnavailableError,
-    );
-  });
-
-  it('throws GeminiUnavailableError on unexpected status', async () => {
-    fetchMock.mockResolvedValueOnce(makeResponse(418, {}));
+  it('wraps unknown errors in GeminiUnavailableError after exhaustion', async () => {
+    httpClient.call.mockRejectedValue(new Error('unexpected'));
 
     await expect(service.generateContent('prompt')).rejects.toBeInstanceOf(
       GeminiUnavailableError,
@@ -184,67 +136,45 @@ describe('GeminiService', () => {
 
   describe('generateJson', () => {
     it('returns parsed data and token usage on success', async () => {
-      const payload = {
-        analysis: 'ok',
-        suggestions: ['tip'],
-        severity: 'info',
-      };
-      fetchMock.mockResolvedValueOnce(
-        makeResponse(200, makeGeminiResponse(JSON.stringify(payload))),
-      );
+      const payload = { analysis: 'ok', suggestions: ['tip'], severity: 'info' };
+      httpClient.call.mockResolvedValueOnce({
+        text: JSON.stringify(payload),
+        tokenUsage: { prompt: 10, completion: 5, total: 15 },
+      });
 
       const result = await service.generateJson<typeof payload>('prompt');
 
       expect(result.data).toEqual(payload);
-      expect(result.tokenUsage).toEqual({
-        prompt: 10,
-        completion: 5,
-        total: 15,
-      });
+      expect(result.tokenUsage).toEqual({ prompt: 10, completion: 5, total: 15 });
     });
 
-    it('sends response_mime_type application/json in generationConfig', async () => {
-      const payload = { analysis: 'x', suggestions: [], severity: 'info' };
-      fetchMock.mockResolvedValueOnce(
-        makeResponse(200, makeGeminiResponse(JSON.stringify(payload))),
-      );
+    it('passes response_mime_type application/json in generationConfig', async () => {
+      httpClient.call.mockResolvedValueOnce({ text: '{}', tokenUsage: undefined });
 
       await service.generateJson('prompt');
 
-      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
-      expect(body.generationConfig?.response_mime_type).toBe(
-        'application/json',
-      );
+      const generationConfig = httpClient.call.mock.calls[0][1];
+      expect(generationConfig?.response_mime_type).toBe('application/json');
     });
 
-    it('sends response_schema when schema is provided', async () => {
-      const payload = { analysis: 'x', suggestions: [], severity: 'info' };
-      fetchMock.mockResolvedValueOnce(
-        makeResponse(200, makeGeminiResponse(JSON.stringify(payload))),
-      );
-      const schema = {
-        type: 'object',
-        properties: { analysis: { type: 'string' } },
-      };
+    it('passes response_schema when schema is provided', async () => {
+      httpClient.call.mockResolvedValueOnce({ text: '{}', tokenUsage: undefined });
+      const schema = { type: 'object', properties: { analysis: { type: 'string' } } };
 
       await service.generateJson('prompt', schema);
 
-      const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
-      expect(body.generationConfig?.response_schema).toEqual(schema);
+      const generationConfig = httpClient.call.mock.calls[0][1];
+      expect(generationConfig?.response_schema).toEqual(schema);
     });
 
-    it('throws SyntaxError when Gemini returns invalid JSON', async () => {
-      fetchMock.mockResolvedValueOnce(
-        makeResponse(200, makeGeminiResponse('not-json')),
-      );
+    it('throws SyntaxError when httpClient returns invalid JSON text', async () => {
+      httpClient.call.mockResolvedValueOnce({ text: 'not-json', tokenUsage: undefined });
 
-      await expect(service.generateJson('prompt')).rejects.toBeInstanceOf(
-        SyntaxError,
-      );
+      await expect(service.generateJson('prompt')).rejects.toBeInstanceOf(SyntaxError);
     });
 
-    it('propagates GeminiUnavailableError from underlying generate call', async () => {
-      fetchMock.mockResolvedValue(makeResponse(500, {}));
+    it('propagates GeminiUnavailableError from httpClient', async () => {
+      httpClient.call.mockRejectedValue(new GeminiUnavailableError('upstream'));
 
       await expect(service.generateJson('prompt')).rejects.toBeInstanceOf(
         GeminiUnavailableError,

@@ -4,73 +4,35 @@ import { AppLoggerService } from 'src/common/logger/app-logger.service';
 import { GeminiAuthError } from './errors/gemini-auth.error';
 import { GeminiRateLimitError } from './errors/gemini-rate-limit.error';
 import { GeminiUnavailableError } from './errors/gemini-unavailable.error';
-import { TokenUsage } from './ai-usage.service';
+import { GeminiHttpClient } from './gemini-http.client';
+import { withRetry } from './retry.util';
+import {
+  GeminiContent,
+  GeminiJsonResult,
+  GeminiResult,
+  GenerationConfig,
+} from './types/gemini.types';
 
-type GeminiApiResponse = {
-  candidates: Array<{
-    content: { parts: Array<{ text: string }> };
-  }>;
-  usageMetadata?: {
-    promptTokenCount?: number;
-    candidatesTokenCount?: number;
-    totalTokenCount?: number;
-  };
-};
-
-export type GeminiResult = {
-  text: string;
-  tokenUsage?: TokenUsage;
-};
-
-export type GeminiJsonResult<T> = {
-  data: T;
-  tokenUsage?: TokenUsage;
-};
-
-export type GeminiContent = {
-  role: 'user' | 'model';
-  parts: [{ text: string }];
-};
-
-type GenerationConfig = Record<string, unknown>;
+export type { GeminiContent, GeminiResult, GeminiJsonResult };
 
 @Injectable()
 export class GeminiService {
-  private readonly apiKey: string;
-  private readonly baseUrl: string;
-  private readonly model: string;
-  private readonly timeoutMs: number;
   private readonly retryCount: number;
   private readonly retryBaseDelayMs: number;
 
   constructor(
     private readonly config: ConfigService,
     private readonly logger: AppLoggerService,
+    private readonly httpClient: GeminiHttpClient,
   ) {
-    this.apiKey = this.config.get<string>('GEMINI_API_KEY') ?? '';
-    this.baseUrl =
-      this.config.get<string>('GEMINI_API_BASE_URL') ??
-      'https://generativelanguage.googleapis.com';
-    this.model = this.config.get<string>('GEMINI_MODEL') ?? 'gemini-2.0-flash';
-    this.timeoutMs = this.readPositiveNumber('AI_HTTP_TIMEOUT_MS', 15000);
     this.retryCount = this.readPositiveNumber('AI_RETRY_COUNT', 3);
-    this.retryBaseDelayMs = this.readPositiveNumber(
-      'AI_RETRY_BASE_DELAY_MS',
-      300,
-    );
-
-    if (!this.apiKey.trim()) {
-      throw new Error('Missing required environment variable: GEMINI_API_KEY');
-    }
+    this.retryBaseDelayMs = this.readPositiveNumber('AI_RETRY_BASE_DELAY_MS', 300);
 
     this.logger.log(
       {
-        model: this.model,
-        baseUrl: this.baseUrl,
-        timeoutMs: this.timeoutMs,
+        model: this.httpClient.modelName,
         retryCount: this.retryCount,
         retryBaseDelayMs: this.retryBaseDelayMs,
-        hasApiKey: true,
       },
       'GeminiService',
     );
@@ -98,136 +60,38 @@ export class GeminiService {
     return { data, tokenUsage };
   }
 
-  private async generate(
+  private generate(
     contents: GeminiContent[],
     generationConfig?: GenerationConfig,
   ): Promise<GeminiResult> {
-    const url = `${this.baseUrl}/v1beta/models/${this.model}:generateContent`;
-
-    let lastError: unknown;
-
-    for (let attempt = 0; attempt <= this.retryCount; attempt++) {
-      if (attempt > 0) {
-        const delayMs = this.retryBaseDelayMs * Math.pow(2, attempt - 1);
-        await this.delay(delayMs);
-      }
-
-      try {
-        const result = await this.fetchWithTimeout(
-          url,
-          contents,
-          generationConfig,
-        );
-
-        this.logger.log({ model: this.model, attempt }, 'GeminiService');
-        return result;
-      } catch (error) {
-        if (
-          error instanceof GeminiAuthError ||
-          error instanceof GeminiRateLimitError
-        ) {
-          throw error;
-        }
-
-        const isRetryable =
-          error instanceof GeminiUnavailableError ||
-          (error instanceof Error && error.name === 'AbortError');
-
-        if (isRetryable && attempt < this.retryCount) {
-          lastError = error;
+    return withRetry(
+      () => this.httpClient.call(contents, generationConfig),
+      {
+        retryCount: this.retryCount,
+        retryBaseDelayMs: this.retryBaseDelayMs,
+        isAbort: (err) =>
+          err instanceof GeminiAuthError || err instanceof GeminiRateLimitError,
+        isRetryable: (err) =>
+          err instanceof GeminiUnavailableError ||
+          (err instanceof Error && err.name === 'AbortError'),
+        toFinalError: (err) =>
+          err instanceof GeminiUnavailableError ||
+          err instanceof GeminiRateLimitError ||
+          err instanceof GeminiAuthError
+            ? (err as Error)
+            : new GeminiUnavailableError('AI service network error'),
+        onRetry: (attempt, err) =>
           this.logger.warn(
-            { attempt, reason: (error as Error).message },
+            { attempt, reason: (err as Error).message },
             'GeminiService',
-          );
-          continue;
-        }
-
-        throw error instanceof GeminiUnavailableError ||
-          error instanceof GeminiRateLimitError ||
-          error instanceof GeminiAuthError
-          ? error
-          : new GeminiUnavailableError('AI service network error');
-      }
-    }
-
-    throw lastError ?? new GeminiUnavailableError();
-  }
-
-  private async fetchWithTimeout(
-    url: string,
-    contents: GeminiContent[],
-    generationConfig?: GenerationConfig,
-  ): Promise<GeminiResult> {
-    const controller = new AbortController();
-    const timerId = setTimeout(() => controller.abort(), this.timeoutMs);
-
-    const body: Record<string, unknown> = {
-      contents,
-      ...(generationConfig ? { generationConfig } : {}),
-    };
-
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': this.apiKey,
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-    } catch (fetchError) {
-      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-        throw new GeminiUnavailableError('AI service request timed out');
-      }
-      throw new GeminiUnavailableError('AI service network error');
-    } finally {
-      clearTimeout(timerId);
-    }
-
-    if (response.status === 401 || response.status === 403) {
-      throw new GeminiAuthError();
-    }
-
-    if (response.status === 429) {
-      const retryAfterHeader = response.headers.get('retry-after');
-      const retryAfterSec = retryAfterHeader
-        ? Number.parseInt(retryAfterHeader, 10)
-        : undefined;
-      throw new GeminiRateLimitError(retryAfterSec);
-    }
-
-    if (response.status >= 500) {
-      throw new GeminiUnavailableError(
-        `Gemini API returned upstream error ${response.status}`,
-      );
-    }
-
-    if (!response.ok) {
-      throw new GeminiUnavailableError(
-        `Gemini API returned unexpected status ${response.status}`,
-      );
-    }
-
-    const data = (await response.json()) as GeminiApiResponse;
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    const usage = data.usageMetadata;
-
-    return {
-      text,
-      tokenUsage: usage
-        ? {
-            prompt: usage.promptTokenCount ?? 0,
-            completion: usage.candidatesTokenCount ?? 0,
-            total: usage.totalTokenCount ?? 0,
-          }
-        : undefined,
-    };
-  }
-
-  private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+          ),
+        onSuccess: (attempt) =>
+          this.logger.log(
+            { model: this.httpClient.modelName, attempt },
+            'GeminiService',
+          ),
+      },
+    );
   }
 
   private readPositiveNumber(key: string, fallback: number): number {

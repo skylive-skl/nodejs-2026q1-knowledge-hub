@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ArticleService } from 'src/article/article.service';
-import { GeminiService, GeminiContent } from './gemini.service';
+import { GeminiService } from './gemini.service';
+import { GeminiContent } from './types/gemini.types';
 import { AiUsageService, TokenUsage } from './ai-usage.service';
 import { AiSessionService } from './ai-session.service';
 import { TtlCache } from './ttl-cache';
