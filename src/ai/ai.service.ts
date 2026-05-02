@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ArticleService } from 'src/article/article.service';
-import { GeminiService } from './gemini.service';
-import { AiUsageService } from './ai-usage.service';
+import { GeminiService, GeminiContent } from './gemini.service';
+import { AiUsageService, TokenUsage } from './ai-usage.service';
 import {
   buildSummarizeArticlePrompt,
   buildTranslateArticlePrompt,
@@ -23,6 +23,11 @@ import {
 
 type CacheEntry = {
   value: unknown;
+  expiresAt: number;
+};
+
+type SessionEntry = {
+  history: GeminiContent[];
   expiresAt: number;
 };
 
@@ -59,6 +64,7 @@ const TRANSLATE_RESPONSE_SCHEMA = {
 @Injectable()
 export class AiService {
   private readonly cache = new Map<string, CacheEntry>();
+  private readonly sessions = new Map<string, SessionEntry>();
   private readonly cacheTtlMs: number;
 
   constructor(
@@ -192,9 +198,42 @@ export class AiService {
 
   async generate(dto: GenerateRequestDto): Promise<{ text: string }> {
     const start = Date.now();
-    const { text, tokenUsage } = await this.gemini.generateContent(dto.prompt);
+
+    let result: { text: string; tokenUsage?: TokenUsage };
+
+    if (dto.sessionId) {
+      const session = this.getSession(dto.sessionId);
+      const contents: GeminiContent[] = [
+        ...session,
+        { role: 'user', parts: [{ text: dto.prompt }] },
+      ];
+      result = await this.gemini.generateWithHistory(contents);
+      this.setSession(dto.sessionId, [
+        ...contents,
+        { role: 'model', parts: [{ text: result.text.trim() }] },
+      ]);
+    } else {
+      result = await this.gemini.generateContent(dto.prompt);
+    }
+
     const latencyMs = Date.now() - start;
-    this.usage.record('generate', { tokens: tokenUsage, latencyMs });
-    return { text: text.trim() };
+    this.usage.record('generate', { tokens: result.tokenUsage, latencyMs });
+    return { text: result.text.trim() };
+  }
+
+  private getSession(sessionId: string): GeminiContent[] {
+    const entry = this.sessions.get(sessionId);
+    if (!entry || Date.now() > entry.expiresAt) {
+      this.sessions.delete(sessionId);
+      return [];
+    }
+    return entry.history;
+  }
+
+  private setSession(sessionId: string, history: GeminiContent[]): void {
+    this.sessions.set(sessionId, {
+      history,
+      expiresAt: Date.now() + this.cacheTtlMs,
+    });
   }
 }

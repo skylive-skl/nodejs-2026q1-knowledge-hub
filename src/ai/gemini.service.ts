@@ -27,6 +27,11 @@ export type GeminiJsonResult<T> = {
   tokenUsage?: TokenUsage;
 };
 
+export type GeminiContent = {
+  role: 'user' | 'model';
+  parts: [{ text: string }];
+};
+
 type GenerationConfig = Record<string, unknown>;
 
 @Injectable()
@@ -72,7 +77,11 @@ export class GeminiService {
   }
 
   async generateContent(prompt: string): Promise<GeminiResult> {
-    return this.generate(prompt);
+    return this.generate([{ role: 'user', parts: [{ text: prompt }] }]);
+  }
+
+  async generateWithHistory(contents: GeminiContent[]): Promise<GeminiResult> {
+    return this.generate(contents);
   }
 
   async generateJson<T>(
@@ -83,13 +92,14 @@ export class GeminiService {
       response_mime_type: 'application/json',
       ...(schema ? { response_schema: schema } : {}),
     };
-    const { text, tokenUsage } = await this.generate(prompt, generationConfig);
+    const contents: GeminiContent[] = [{ role: 'user', parts: [{ text: prompt }] }];
+    const { text, tokenUsage } = await this.generate(contents, generationConfig);
     const data = JSON.parse(text) as T;
     return { data, tokenUsage };
   }
 
   private async generate(
-    prompt: string,
+    contents: GeminiContent[],
     generationConfig?: GenerationConfig,
   ): Promise<GeminiResult> {
     const url = `${this.baseUrl}/v1beta/models/${this.model}:generateContent`;
@@ -105,7 +115,7 @@ export class GeminiService {
       try {
         const result = await this.fetchWithTimeout(
           url,
-          prompt,
+          contents,
           generationConfig,
         );
 
@@ -145,14 +155,14 @@ export class GeminiService {
 
   private async fetchWithTimeout(
     url: string,
-    prompt: string,
+    contents: GeminiContent[],
     generationConfig?: GenerationConfig,
   ): Promise<GeminiResult> {
     const controller = new AbortController();
     const timerId = setTimeout(() => controller.abort(), this.timeoutMs);
 
     const body: Record<string, unknown> = {
-      contents: [{ parts: [{ text: prompt }] }],
+      contents,
       ...(generationConfig ? { generationConfig } : {}),
     };
 
