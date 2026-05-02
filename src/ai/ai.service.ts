@@ -10,6 +10,7 @@ import {
 } from './prompts/article.prompts';
 import {
   AnalyzeArticleRequestDto,
+  GenerateRequestDto,
   SummarizeArticleRequestDto,
   TranslateArticleRequestDto,
 } from './dto';
@@ -187,5 +188,13 @@ export class AiService {
     };
     this.usage.record('analyze', { tokens: tokenUsage, latencyMs });
     return result;
+  }
+
+  async generate(dto: GenerateRequestDto): Promise<{ text: string }> {
+    const start = Date.now();
+    const { text, tokenUsage } = await this.gemini.generateContent(dto.prompt);
+    const latencyMs = Date.now() - start;
+    this.usage.record('generate', { tokens: tokenUsage, latencyMs });
+    return { text: text.trim() };
   }
 }

@@ -13,6 +13,7 @@ import { AiUsageService } from './ai-usage.service';
 import {
   AiArticleParamDto,
   AnalyzeArticleRequestDto,
+  GenerateRequestDto,
   SummarizeArticleRequestDto,
   TranslateArticleRequestDto,
 } from './dto';
@@ -31,6 +32,12 @@ export class AiController {
   @UseGuards(JwtAuthGuard)
   getUsage() {
     return this.usageService.getStats();
+  }
+
+  @Post('generate')
+  @HttpCode(HttpStatus.OK)
+  generate(@Body() dto: GenerateRequestDto) {
+    return this.aiService.generate(dto);
   }
 
   @Post('articles/:articleId/summarize')
