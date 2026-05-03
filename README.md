@@ -146,28 +146,22 @@ Run all e2e tests:
 npm run test:e2e
 ```
 
-Run core e2e tests only:
-
-```bash
-npm run test:e2e:core
-```
-
 Run auth-related e2e tests:
 
 ```bash
-npm run test:e2e:auth
+npm run test:auth
 ```
 
 Run refresh token e2e tests:
 
 ```bash
-npm run test:e2e:refresh
+npm run test:refresh
 ```
 
 Run RBAC e2e tests:
 
 ```bash
-npm run test:e2e:rbac
+npm run test:rbac
 ```
 
 Run tests in watch mode:
