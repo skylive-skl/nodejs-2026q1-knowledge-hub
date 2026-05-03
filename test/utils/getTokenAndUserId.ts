@@ -1,12 +1,17 @@
 import { authRoutes } from '../endpoints';
 import promoteUserRole from './promoteUserRole';
 
-const createUserDto = {
-  login: 'TEST_AUTH_LOGIN',
-  password: 'Tu6!@#%&',
-};
+const TEST_PASSWORD = 'Tu6!@#%&';
+
+const createUniqueUserDto = () => ({
+  // Unique login removes cross-suite collisions in sequential e2e runs.
+  login: `TEST_AUTH_LOGIN_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+  password: TEST_PASSWORD,
+});
 
 const getTokenAndUserId = async (request) => {
+  const createUserDto = createUniqueUserDto();
+
   // create user (signup always yields a viewer per spec)
   const {
     body: { id: mockUserId },

@@ -1,13 +1,9 @@
-import {
-  Injectable,
-  CanActivate,
-  ExecutionContext,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { UserRole } from 'src/common/enums';
 import { JwtPayload } from '../strategies/jwt.strategy';
+import { ForbiddenError } from 'src/common/errors/forbidden.error';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -27,11 +23,11 @@ export class RolesGuard implements CanActivate {
     const user: JwtPayload = request.user;
 
     if (!user) {
-      throw new ForbiddenException('User not found in request');
+      throw new ForbiddenError('User not found in request');
     }
 
     if (!requiredRoles.includes(user.role)) {
-      throw new ForbiddenException(
+      throw new ForbiddenError(
         `Insufficient permissions. Required roles: ${requiredRoles.join(', ')}`,
       );
     }

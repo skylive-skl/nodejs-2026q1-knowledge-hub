@@ -1,11 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
 import { CommentService } from './comment.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ArticleService } from 'src/article/article.service';
+import { NotFoundError } from 'src/common/errors/not-found.error';
+import { UnprocessableEntityError } from 'src/common/errors/unprocessable-entity.error';
 
 describe('CommentService', () => {
   let service: CommentService;
@@ -65,7 +63,7 @@ describe('CommentService', () => {
   });
 
   describe('create', () => {
-    it('throws UnprocessableEntityException when article does not exist', async () => {
+    it('throws UnprocessableEntityError when article does not exist', async () => {
       articleServiceMock.exists.mockResolvedValue(false);
 
       await expect(
@@ -74,7 +72,7 @@ describe('CommentService', () => {
           articleId: '13ef4f88-f887-42a3-b7ea-3a65c4977e24',
           authorId: null,
         }),
-      ).rejects.toBeInstanceOf(UnprocessableEntityException);
+      ).rejects.toBeInstanceOf(UnprocessableEntityError);
       expect(prismaServiceMock.comment.create).not.toHaveBeenCalled();
     });
 
@@ -149,22 +147,22 @@ describe('CommentService', () => {
       expect(result.id).toBe('comment-1');
     });
 
-    it('throws NotFoundException for missing comment', async () => {
+    it('throws NotFoundError for missing comment', async () => {
       prismaServiceMock.comment.findUnique.mockResolvedValue(null);
 
       await expect(service.findOne('missing-id')).rejects.toBeInstanceOf(
-        NotFoundException,
+        NotFoundError,
       );
     });
   });
 
   describe('update', () => {
-    it('throws NotFoundException when comment does not exist', async () => {
+    it('throws NotFoundError when comment does not exist', async () => {
       prismaServiceMock.comment.findUnique.mockResolvedValue(null);
 
       await expect(
         service.update('missing-id', { content: 'new text' }),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toBeInstanceOf(NotFoundError);
     });
 
     it('updates comment when it exists', async () => {
@@ -186,11 +184,11 @@ describe('CommentService', () => {
   });
 
   describe('remove', () => {
-    it('throws NotFoundException when comment does not exist', async () => {
+    it('throws NotFoundError when comment does not exist', async () => {
       prismaServiceMock.comment.findUnique.mockResolvedValue(null);
 
       await expect(service.remove('missing-id')).rejects.toBeInstanceOf(
-        NotFoundException,
+        NotFoundError,
       );
       expect(prismaServiceMock.comment.delete).not.toHaveBeenCalled();
     });

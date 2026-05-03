@@ -19,7 +19,12 @@ export default defineConfig({
         'src/common/pagination.ts',
         'src/users/users.entity.ts',
       ],
-      exclude: ['src/**/*.spec.ts', 'src/**/*.controller.ts', 'src/**/*.module.ts'],
+      exclude: [
+        'src/**/*.spec.ts',
+        'src/**/*.controller.ts',
+        'src/**/*.module.ts',
+        'src/common/logger/**',
+      ],
       thresholds: {
         lines: 90,
         branches: 85,

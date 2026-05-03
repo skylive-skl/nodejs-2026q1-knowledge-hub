@@ -110,6 +110,96 @@ components:
         - id
         - content
         - articleId
+    SummarizeArticleRequest:
+      type: object
+      properties:
+        maxLength:
+          type: string
+          enum: [short, medium, detailed]
+          default: medium
+          example: medium
+    SummarizeArticleResponse:
+      type: object
+      properties:
+        articleId:
+          type: string
+          format: uuid
+        summary:
+          type: string
+          example: 'A concise overview of the article content.'
+        originalLength:
+          type: number
+          example: 1500
+        summaryLength:
+          type: number
+          example: 200
+      required:
+        - articleId
+        - summary
+        - originalLength
+        - summaryLength
+    TranslateArticleRequest:
+      type: object
+      properties:
+        targetLanguage:
+          type: string
+          example: ru
+        sourceLanguage:
+          type: string
+          example: en
+      required:
+        - targetLanguage
+    TranslateArticleResponse:
+      type: object
+      properties:
+        articleId:
+          type: string
+          format: uuid
+        translatedTitle:
+          type: string
+          example: 'Начало работы с NestJS'
+        translatedContent:
+          type: string
+          example: 'NestJS — это прогрессивный фреймворк Node.js для создания эффективных серверных приложений.'
+        detectedLanguage:
+          type: string
+          example: en
+      required:
+        - articleId
+        - translatedTitle
+        - translatedContent
+        - detectedLanguage
+    AnalyzeArticleRequest:
+      type: object
+      properties:
+        task:
+          type: string
+          enum: [review, bugs, optimize, explain]
+          default: review
+          example: review
+    AnalyzeArticleResponse:
+      type: object
+      properties:
+        articleId:
+          type: string
+          format: uuid
+        analysis:
+          type: string
+          example: 'The article is well structured but lacks code examples.'
+        suggestions:
+          type: array
+          items:
+            type: string
+          example: ['Add code examples', 'Improve conclusion']
+        severity:
+          type: string
+          enum: [info, warning, error]
+          example: info
+      required:
+        - articleId
+        - analysis
+        - suggestions
+        - severity
   responses:
     UnauthorizedError:
       description: Access token is missing or invalid
@@ -752,3 +842,129 @@ paths:
           $ref: '#/components/responses/ForbiddenError'
         404:
           description: Comment was not found
+
+  /ai/articles/{articleId}/summarize:
+    post:
+      tags:
+        - AI
+      summary: Summarize article
+      description: Generates a summary for an existing article using Google Gemini AI.
+      parameters:
+        - name: articleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SummarizeArticleRequest'
+      responses:
+        200:
+          description: Summary generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SummarizeArticleResponse'
+        400:
+          description: Bad request. articleId is invalid (not uuid)
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        404:
+          description: Article was not found
+        429:
+          description: Too many requests. Check Retry-After header.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds to wait before retrying
+        503:
+          description: AI service temporarily unavailable
+
+  /ai/articles/{articleId}/translate:
+    post:
+      tags:
+        - AI
+      summary: Translate article
+      description: Translates article content into the specified target language using Google Gemini AI.
+      parameters:
+        - name: articleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TranslateArticleRequest'
+      responses:
+        200:
+          description: Translation generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranslateArticleResponse'
+        400:
+          description: Bad request. articleId is invalid or targetLanguage is missing
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        404:
+          description: Article was not found
+        429:
+          description: Too many requests. Check Retry-After header.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds to wait before retrying
+        503:
+          description: AI service temporarily unavailable
+
+  /ai/articles/{articleId}/analyze:
+    post:
+      tags:
+        - AI
+      summary: Analyze article
+      description: Analyzes article content and returns review insights using Google Gemini AI.
+      parameters:
+        - name: articleId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AnalyzeArticleRequest'
+      responses:
+        200:
+          description: Analysis completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyzeArticleResponse'
+        400:
+          description: Bad request. articleId is invalid (not uuid)
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        404:
+          description: Article was not found
+        429:
+          description: Too many requests. Check Retry-After header.
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds to wait before retrying
+        503:
+          description: AI service temporarily unavailable

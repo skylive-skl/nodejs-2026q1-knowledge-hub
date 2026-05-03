@@ -64,7 +64,7 @@ describe('Refresh (e2e)', () => {
 
   afterAll(async () => {
     if (userTokens) {
-      removeTokenUser(request, userTokens.userId, headers);
+      await removeTokenUser(request, userTokens.userId, headers);
       delete headers['Authorization'];
     }
   });

@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -8,6 +7,8 @@ import { AuthService } from './auth.service';
 import { UsersService } from 'src/users/users.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UserRole } from 'src/common/enums';
+import { ValidationError } from 'src/common/errors/validation.error';
+import { ForbiddenError } from 'src/common/errors/forbidden.error';
 
 vi.mock('bcrypt', () => ({
   compare: vi.fn(),
@@ -96,12 +97,14 @@ describe('AuthService', () => {
   });
 
   describe('signup', () => {
-    it('throws BadRequestException for duplicate login', async () => {
-      prismaServiceMock.user.findUnique.mockResolvedValue({ id: 'existing-user' });
+    it('throws ValidationError for duplicate login', async () => {
+      prismaServiceMock.user.findUnique.mockResolvedValue({
+        id: 'existing-user',
+      });
 
       await expect(
         service.signup({ login: 'john', password: 'secret' }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).rejects.toBeInstanceOf(ValidationError);
 
       expect(usersServiceMock.create).not.toHaveBeenCalled();
     });
@@ -117,7 +120,10 @@ describe('AuthService', () => {
       prismaServiceMock.user.findUnique.mockResolvedValue(null);
       usersServiceMock.create.mockResolvedValue(created);
 
-      const result = await service.signup({ login: 'john', password: 'secret' });
+      const result = await service.signup({
+        login: 'john',
+        password: 'secret',
+      });
 
       expect(usersServiceMock.create).toHaveBeenCalledWith({
         login: 'john',
@@ -129,15 +135,15 @@ describe('AuthService', () => {
   });
 
   describe('login', () => {
-    it('throws ForbiddenException when user is not found', async () => {
+    it('throws ForbiddenError when user is not found', async () => {
       prismaServiceMock.user.findUnique.mockResolvedValue(null);
 
       await expect(
         service.login({ login: 'unknown', password: 'secret' }),
-      ).rejects.toBeInstanceOf(ForbiddenException);
+      ).rejects.toBeInstanceOf(ForbiddenError);
     });
 
-    it('throws ForbiddenException for invalid password', async () => {
+    it('throws ForbiddenError for invalid password', async () => {
       prismaServiceMock.user.findUnique.mockResolvedValue({
         id: 'user-1',
         login: 'john',
@@ -148,7 +154,7 @@ describe('AuthService', () => {
 
       await expect(
         service.login({ login: 'john', password: 'wrong-password' }),
-      ).rejects.toBeInstanceOf(ForbiddenException);
+      ).rejects.toBeInstanceOf(ForbiddenError);
     });
 
     it('returns token pair and stores refresh token hash on success', async () => {
@@ -186,7 +192,9 @@ describe('AuthService', () => {
         },
       );
 
-      const expectedHash = createHash('sha256').update(refreshToken).digest('hex');
+      const expectedHash = createHash('sha256')
+        .update(refreshToken)
+        .digest('hex');
       expect(prismaServiceMock.refreshToken.create).toHaveBeenCalledWith({
         data: {
           token: expectedHash,
@@ -200,18 +208,49 @@ describe('AuthService', () => {
         refreshToken,
       });
     });
+
+    it('stores fallback refresh token expiration when decode has no exp', async () => {
+      const refreshToken = 'refresh.no-exp';
+      const dateNowSpy = vi
+        .spyOn(Date, 'now')
+        .mockReturnValue(1_700_000_000_000);
+
+      prismaServiceMock.user.findUnique.mockResolvedValue({
+        id: 'user-1',
+        login: 'john',
+        password: 'db-hash',
+        role: UserRole.ADMIN,
+      });
+      vi.mocked(bcrypt.compare).mockResolvedValue(true as never);
+      jwtServiceMock.signAsync
+        .mockResolvedValueOnce('access.token')
+        .mockResolvedValueOnce(refreshToken);
+      jwtServiceMock.decode.mockReturnValue({});
+
+      await service.login({ login: 'john', password: 'secret' });
+
+      expect(prismaServiceMock.refreshToken.create).toHaveBeenCalledWith({
+        data: {
+          token: createHash('sha256').update(refreshToken).digest('hex'),
+          userId: 'user-1',
+          expiresAt: BigInt(1_700_000_000_000 + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
+
+      dateNowSpy.mockRestore();
+    });
   });
 
   describe('refresh', () => {
-    it('throws ForbiddenException for invalid or expired refresh token', async () => {
+    it('throws ForbiddenError for invalid or expired refresh token', async () => {
       jwtServiceMock.verifyAsync.mockRejectedValue(new Error('invalid token'));
 
       await expect(service.refresh('bad-token')).rejects.toBeInstanceOf(
-        ForbiddenException,
+        ForbiddenError,
       );
     });
 
-    it('throws ForbiddenException when token is not in whitelist', async () => {
+    it('throws ForbiddenError when token is not in whitelist', async () => {
       jwtServiceMock.verifyAsync.mockResolvedValue({
         userId: 'user-1',
         login: 'john',
@@ -220,21 +259,23 @@ describe('AuthService', () => {
       prismaServiceMock.refreshToken.findFirst.mockResolvedValue(null);
 
       await expect(service.refresh('refresh-token')).rejects.toBeInstanceOf(
-        ForbiddenException,
+        ForbiddenError,
       );
     });
 
-    it('throws ForbiddenException when payload user does not exist', async () => {
+    it('throws ForbiddenError when payload user does not exist', async () => {
       jwtServiceMock.verifyAsync.mockResolvedValue({
         userId: 'user-1',
         login: 'john',
         role: UserRole.EDITOR,
       });
-      prismaServiceMock.refreshToken.findFirst.mockResolvedValue({ id: 'rt-1' });
+      prismaServiceMock.refreshToken.findFirst.mockResolvedValue({
+        id: 'rt-1',
+      });
       prismaServiceMock.user.findUnique.mockResolvedValue(null);
 
       await expect(service.refresh('refresh-token')).rejects.toBeInstanceOf(
-        ForbiddenException,
+        ForbiddenError,
       );
     });
 
@@ -247,7 +288,9 @@ describe('AuthService', () => {
         login: 'john',
         role: UserRole.EDITOR,
       });
-      prismaServiceMock.refreshToken.findFirst.mockResolvedValue({ id: 'rt-1' });
+      prismaServiceMock.refreshToken.findFirst.mockResolvedValue({
+        id: 'rt-1',
+      });
       prismaServiceMock.user.findUnique.mockResolvedValue({
         id: 'user-1',
         login: 'john',
@@ -279,12 +322,12 @@ describe('AuthService', () => {
   });
 
   describe('logout', () => {
-    it('throws ForbiddenException when token does not belong to user', async () => {
+    it('throws ForbiddenError when token does not belong to user', async () => {
       jwtServiceMock.verifyAsync.mockResolvedValue({ userId: 'other-user' });
 
-      await expect(service.logout('user-1', 'refresh-token')).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      await expect(
+        service.logout('user-1', 'refresh-token'),
+      ).rejects.toBeInstanceOf(ForbiddenError);
       expect(prismaServiceMock.refreshToken.deleteMany).not.toHaveBeenCalled();
     });
 

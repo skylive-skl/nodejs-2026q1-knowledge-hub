@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
 import { CategoryService } from './category.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ArticleService } from 'src/article/article.service';
+import { NotFoundError } from 'src/common/errors/not-found.error';
 
 describe('CategoryService', () => {
   let service: CategoryService;
@@ -116,22 +116,22 @@ describe('CategoryService', () => {
       expect(result).toEqual(makeCategory());
     });
 
-    it('throws NotFoundException for missing category', async () => {
+    it('throws NotFoundError for missing category', async () => {
       prismaServiceMock.category.findUnique.mockResolvedValue(null);
 
       await expect(service.findOne('missing-id')).rejects.toBeInstanceOf(
-        NotFoundException,
+        NotFoundError,
       );
     });
   });
 
   describe('update', () => {
-    it('throws NotFoundException when category does not exist', async () => {
+    it('throws NotFoundError when category does not exist', async () => {
       prismaServiceMock.category.findUnique.mockResolvedValue(null);
 
       await expect(
         service.update('missing-id', { name: 'Updated' }),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      ).rejects.toBeInstanceOf(NotFoundError);
     });
 
     it('updates category when it exists', async () => {
@@ -151,11 +151,11 @@ describe('CategoryService', () => {
   });
 
   describe('remove', () => {
-    it('throws NotFoundException when category does not exist', async () => {
+    it('throws NotFoundError when category does not exist', async () => {
       prismaServiceMock.category.findUnique.mockResolvedValue(null);
 
       await expect(service.remove('missing-id')).rejects.toBeInstanceOf(
-        NotFoundException,
+        NotFoundError,
       );
       expect(prismaServiceMock.category.delete).not.toHaveBeenCalled();
     });

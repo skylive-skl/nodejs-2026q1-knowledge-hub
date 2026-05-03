@@ -6,11 +6,7 @@ import {
   shouldAuthorizationBeTested,
   removeTokenUser,
 } from './utils';
-import {
-  articlesRoutes,
-  categoriesRoutes,
-  commentsRoutes,
-} from './endpoints';
+import { articlesRoutes, categoriesRoutes, commentsRoutes } from './endpoints';
 
 const createArticleDto = {
   title: 'TEST_ARTICLE',
@@ -116,7 +112,11 @@ describe('Article (e2e)', () => {
       const publishedArticle = await unauthorizedRequest
         .post(articlesRoutes.create)
         .set(commonHeaders)
-        .send({ ...createArticleDto, title: 'PUBLISHED_ARTICLE', status: 'published' });
+        .send({
+          ...createArticleDto,
+          title: 'PUBLISHED_ARTICLE',
+          status: 'published',
+        });
 
       expect(publishedArticle.status).toBe(StatusCodes.CREATED);
       const { id: publishedId } = publishedArticle.body;
@@ -135,8 +135,12 @@ describe('Article (e2e)', () => {
       expect(hasPublished).toBe(false);
 
       // Cleanup
-      await unauthorizedRequest.delete(articlesRoutes.delete(draftId)).set(commonHeaders);
-      await unauthorizedRequest.delete(articlesRoutes.delete(publishedId)).set(commonHeaders);
+      await unauthorizedRequest
+        .delete(articlesRoutes.delete(draftId))
+        .set(commonHeaders);
+      await unauthorizedRequest
+        .delete(articlesRoutes.delete(publishedId))
+        .set(commonHeaders);
     });
 
     it('should correctly filter articles by categoryId', async () => {
@@ -172,15 +176,23 @@ describe('Article (e2e)', () => {
       expect(response.body).toBeInstanceOf(Array);
 
       const hasWithCat = response.body.some((a) => a.id === articleWithCatId);
-      const hasWithoutCat = response.body.some((a) => a.id === articleWithoutCatId);
+      const hasWithoutCat = response.body.some(
+        (a) => a.id === articleWithoutCatId,
+      );
 
       expect(hasWithCat).toBe(true);
       expect(hasWithoutCat).toBe(false);
 
       // Cleanup
-      await unauthorizedRequest.delete(articlesRoutes.delete(articleWithCatId)).set(commonHeaders);
-      await unauthorizedRequest.delete(articlesRoutes.delete(articleWithoutCatId)).set(commonHeaders);
-      await unauthorizedRequest.delete(categoriesRoutes.delete(categoryId)).set(commonHeaders);
+      await unauthorizedRequest
+        .delete(articlesRoutes.delete(articleWithCatId))
+        .set(commonHeaders);
+      await unauthorizedRequest
+        .delete(articlesRoutes.delete(articleWithoutCatId))
+        .set(commonHeaders);
+      await unauthorizedRequest
+        .delete(categoriesRoutes.delete(categoryId))
+        .set(commonHeaders);
     });
 
     it('should correctly filter articles by tag', async () => {
@@ -214,8 +226,12 @@ describe('Article (e2e)', () => {
       expect(hasUntagged).toBe(false);
 
       // Cleanup
-      await unauthorizedRequest.delete(articlesRoutes.delete(tagArticleId)).set(commonHeaders);
-      await unauthorizedRequest.delete(articlesRoutes.delete(noTagArticleId)).set(commonHeaders);
+      await unauthorizedRequest
+        .delete(articlesRoutes.delete(tagArticleId))
+        .set(commonHeaders);
+      await unauthorizedRequest
+        .delete(articlesRoutes.delete(noTagArticleId))
+        .set(commonHeaders);
     });
   });
 
@@ -226,8 +242,17 @@ describe('Article (e2e)', () => {
         .set(commonHeaders)
         .send(createArticleDto);
 
-      const { id, title, content, status, authorId, categoryId, tags, createdAt, updatedAt } =
-        response.body;
+      const {
+        id,
+        title,
+        content,
+        status,
+        authorId,
+        categoryId,
+        tags,
+        createdAt,
+        updatedAt,
+      } = response.body;
 
       expect(response.status).toBe(StatusCodes.CREATED);
 
@@ -330,8 +355,14 @@ describe('Article (e2e)', () => {
         .get(articlesRoutes.getById(createdId))
         .set(commonHeaders);
 
-      const { id: updatedId, title, content, status, categoryId, tags } =
-        updatedArticleResponse.body;
+      const {
+        id: updatedId,
+        title,
+        content,
+        status,
+        categoryId,
+        tags,
+      } = updatedArticleResponse.body;
 
       expect(title).toBe(updatedTitle);
       expect(content).toBe(updatedContent);
@@ -342,8 +373,12 @@ describe('Article (e2e)', () => {
       expect(createdId).toBe(updatedId);
 
       // Cleanup
-      await unauthorizedRequest.delete(articlesRoutes.delete(createdId)).set(commonHeaders);
-      await unauthorizedRequest.delete(categoriesRoutes.delete(updateCategoryId)).set(commonHeaders);
+      await unauthorizedRequest
+        .delete(articlesRoutes.delete(createdId))
+        .set(commonHeaders);
+      await unauthorizedRequest
+        .delete(categoriesRoutes.delete(updateCategoryId))
+        .set(commonHeaders);
     });
 
     it('should respond with BAD_REQUEST status code in case of invalid id', async () => {
@@ -390,6 +425,62 @@ describe('Article (e2e)', () => {
         });
 
       expect(response.status).toBe(StatusCodes.NOT_FOUND);
+    });
+
+    it('should allow valid status transition chain draft -> published -> archived', async () => {
+      const createResponse = await unauthorizedRequest
+        .post(articlesRoutes.create)
+        .set(commonHeaders)
+        .send({ ...createArticleDto, status: 'draft' });
+
+      expect(createResponse.status).toBe(StatusCodes.CREATED);
+      const { id } = createResponse.body;
+
+      const publishResponse = await unauthorizedRequest
+        .put(articlesRoutes.update(id))
+        .set(commonHeaders)
+        .send({ status: 'published' });
+
+      expect(publishResponse.status).toBe(StatusCodes.OK);
+      expect(publishResponse.body.status).toBe('published');
+
+      const archiveResponse = await unauthorizedRequest
+        .put(articlesRoutes.update(id))
+        .set(commonHeaders)
+        .send({ status: 'archived' });
+
+      expect(archiveResponse.status).toBe(StatusCodes.OK);
+      expect(archiveResponse.body.status).toBe('archived');
+
+      await unauthorizedRequest
+        .delete(articlesRoutes.delete(id))
+        .set(commonHeaders);
+    });
+
+    it('should respond with UNPROCESSABLE_ENTITY for invalid status transition', async () => {
+      const createResponse = await unauthorizedRequest
+        .post(articlesRoutes.create)
+        .set(commonHeaders)
+        .send({ ...createArticleDto, status: 'published' });
+
+      expect(createResponse.status).toBe(StatusCodes.CREATED);
+      const { id } = createResponse.body;
+
+      const invalidTransitionResponse = await unauthorizedRequest
+        .put(articlesRoutes.update(id))
+        .set(commonHeaders)
+        .send({ status: 'draft' });
+
+      expect(invalidTransitionResponse.status).toBe(
+        StatusCodes.UNPROCESSABLE_ENTITY,
+      );
+      expect(invalidTransitionResponse.body.message).toContain(
+        'Invalid status transition',
+      );
+
+      await unauthorizedRequest
+        .delete(articlesRoutes.delete(id))
+        .set(commonHeaders);
     });
   });
 
