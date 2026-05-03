@@ -167,10 +167,12 @@ describe('GeminiService', () => {
       expect(generationConfig?.response_schema).toEqual(schema);
     });
 
-    it('throws SyntaxError when httpClient returns invalid JSON text', async () => {
+    it('throws GeminiUnavailableError when httpClient returns invalid JSON text', async () => {
       httpClient.call.mockResolvedValueOnce({ text: 'not-json', tokenUsage: undefined });
 
-      await expect(service.generateJson('prompt')).rejects.toBeInstanceOf(SyntaxError);
+      await expect(service.generateJson('prompt')).rejects.toBeInstanceOf(
+        GeminiUnavailableError,
+      );
     });
 
     it('propagates GeminiUnavailableError from httpClient', async () => {
