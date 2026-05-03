@@ -56,7 +56,14 @@ export class GeminiService {
     };
     const contents: GeminiContent[] = [{ role: 'user', parts: [{ text: prompt }] }];
     const { text, tokenUsage } = await this.generate(contents, generationConfig);
-    const data = JSON.parse(text) as T;
+    let data: T;
+    try {
+      data = JSON.parse(text) as T;
+    } catch {
+      throw new GeminiUnavailableError(
+        'AI service returned malformed JSON response',
+      );
+    }
     return { data, tokenUsage };
   }
 
