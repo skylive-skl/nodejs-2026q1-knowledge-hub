@@ -178,15 +178,14 @@ npm run test:coverage
 
 ### Auth/RBAC test mode notes
 
-Auth-related e2e suites in this project call a running API instance on localhost:4000.
+`npm run test:e2e` now starts the API automatically for the test run.
 
-Before running auth/refresh/rbac tests, start the API with auth test mode enabled:
+Behavior:
+- API is started with `TEST_MODE=auth` and `DISABLE_THROTTLE_FOR_TESTS=true`.
+- E2E runs on isolated port `4010` to avoid collisions with a locally running dev server on `4000`.
+- After Jest completes, the temporary API process is stopped automatically.
 
-```bash
-TEST_MODE=auth DISABLE_THROTTLE_FOR_TESTS=true npm start
-```
-
-Then run tests in a separate terminal.
+For auth/refresh/rbac-only scripts (`test:auth`, `test:refresh`, `test:rbac`), ensure the API is running in auth test mode before starting those commands.
 
 Notes:
 - TEST_MODE=auth enables authorization behavior expected by e2e suites.
