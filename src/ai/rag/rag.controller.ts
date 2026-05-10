@@ -7,8 +7,14 @@ import {
   Param,
   HttpCode,
   HttpStatus,
+  NotFoundException,
 } from '@nestjs/common';
 import { RagService } from './rag.service';
+
+interface ReindexRequest {
+  onlyPublished?: boolean;
+  articleIds?: string[];
+}
 
 @Controller('ai/rag')
 export class RagController {
@@ -16,12 +22,11 @@ export class RagController {
 
   @Post('index')
   @HttpCode(HttpStatus.OK)
-  async indexData() {
-    return {
-      indexedArticles: 0,
-      indexedChunks: 0,
-      vectorCollection: 'scaffold',
-    };
+  async indexData(@Body() body: ReindexRequest) {
+    return this.ragService.indexArticles({
+      onlyPublished: body?.onlyPublished,
+      articleIds: body?.articleIds,
+    });
   }
 
   @Post('search')
@@ -39,7 +44,10 @@ export class RagController {
   @Delete('index/articles/:articleId')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteArticleIndex(@Param('articleId') articleId: string) {
-    // Scaffold
+    const success = await this.ragService.deleteArticleIndex(articleId);
+    if (!success) {
+      throw new NotFoundException('Article/index entries not found');
+    }
   }
 
   @Get('chat/:conversationId/history')
