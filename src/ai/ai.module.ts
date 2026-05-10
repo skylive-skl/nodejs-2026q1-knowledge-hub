@@ -21,6 +21,6 @@ import { AppLoggerService } from 'src/common/logger/app-logger.service';
     AiRateLimitGuard,
     AppLoggerService,
   ],
-  exports: [AiService],
+  exports: [AiService, GeminiHttpClient],
 })
 export class AiModule {}

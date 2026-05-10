@@ -67,6 +67,8 @@ Build and start containers:
 docker compose up -d --build
 ```
 
+This will start the Node application, PostgreSQL database, and Qdrant Vector Database.
+
 Run Adminer (optional debug profile):
 
 ```bash
@@ -88,6 +90,7 @@ After startup:
 - API: http://localhost:4000/
 - Swagger: http://localhost:4000/doc/
 - PostgreSQL: localhost:5432
+- Qdrant (Vector DB): http://localhost:6333/
 - Adminer (debug profile): http://localhost:8080/
 
 Application data is stored in PostgreSQL via Prisma.
@@ -242,6 +245,14 @@ AI_CACHE_TTL_SEC=300           # cache TTL for summarize/translate (default: 300
 AI_HTTP_TIMEOUT_MS=15000       # Gemini HTTP timeout in ms (default: 15000)
 AI_RETRY_COUNT=3               # max retries for transient errors (default: 3)
 AI_RETRY_BASE_DELAY_MS=300     # initial retry delay in ms (default: 300)
+
+GEMINI_EMBEDDING_MODEL=text-embedding-004
+RAG_VECTOR_DB_PROVIDER=qdrant
+RAG_VECTOR_DB_URL=http://vectordb:6333
+RAG_VECTOR_COLLECTION=knowledge_hub_articles
+RAG_CHUNK_SIZE=800
+RAG_CHUNK_OVERLAP=200
+RAG_CONVERSATION_MAX_MESSAGES=20
 ```
 
 ### Setup after clone
@@ -252,8 +263,17 @@ cd Nest.js-Knowledge-Hub-API
 npm install
 cp .env.example .env
 # Open .env and paste your Gemini API key into GEMINI_API_KEY=
-npm run prisma:migrate:dev
+# Start the Docker Compose environment (includes PostgreSQL and Qdrant)
+docker compose up -d
+# Apply Prisma migrations to the database
+npx prisma migrate deploy
+# (Optional) Seed the database if running locally without docker compose for the app
+npx prisma db seed
+# Now you can either use the app via Docker, or run it locally:
 npm start
+
+# After starting, you need to build the initial vector index for RAG
+curl -X POST http://localhost:4000/ai/rag/index
 ```
 
 ### Testing AI endpoints
@@ -297,6 +317,33 @@ curl -X POST http://localhost:4000/ai/articles/<articleId>/analyze \
   -H "Authorization: Bearer <accessToken>" \
   -H "Content-Type: application/json" \
   -d '{"task":"review"}'
+```
+
+### Testing RAG Endpoints
+
+**Index Knowledge Hub data** (`POST /ai/rag/index`):
+
+```bash
+curl -X POST http://localhost:4000/ai/rag/index \
+  -H "Authorization: Bearer <accessToken>"
+```
+
+**Semantic Search** (`POST /ai/rag/search`):
+
+```bash
+curl -X POST http://localhost:4000/ai/rag/search \
+  -H "Authorization: Bearer <accessToken>" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"How does the Knowledge Hub work?"}'
+```
+
+**Chat with RAG** (`POST /ai/rag/chat`):
+
+```bash
+curl -X POST http://localhost:4000/ai/rag/chat \
+  -H "Authorization: Bearer <accessToken>" \
+  -H "Content-Type: application/json" \
+  -d '{"question":"What is this hub about?"}'
 ```
 
 ### Known limitations (free tier)

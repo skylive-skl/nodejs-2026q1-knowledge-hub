@@ -40,7 +40,10 @@ describe('AiService', () => {
     geminiMock = { generateContent: vi.fn(), generateJson: vi.fn() };
     articleServiceMock = { findOne: vi.fn() };
     usageMock = { record: vi.fn(), getStats: vi.fn() };
-    sessionMock = { getSession: vi.fn().mockReturnValue([]), setSession: vi.fn() };
+    sessionMock = {
+      getSession: vi.fn().mockReturnValue([]),
+      setSession: vi.fn(),
+    };
 
     const config = { get: vi.fn().mockReturnValue(300) } as any;
 
@@ -118,7 +121,10 @@ describe('AiService', () => {
       await service.summarize('article-uuid-1', {});
 
       expect(usageMock.record).toHaveBeenCalledTimes(2);
-      expect(usageMock.record).toHaveBeenCalledWith('summarize', expect.any(Object));
+      expect(usageMock.record).toHaveBeenCalledWith(
+        'summarize',
+        expect.any(Object),
+      );
     });
 
     it('throws NotFoundError when article does not exist', async () => {
@@ -259,7 +265,10 @@ describe('AiService', () => {
 
       await service.analyze('article-uuid-1', {});
 
-      expect(usageMock.record).toHaveBeenCalledWith('analyze', expect.any(Object));
+      expect(usageMock.record).toHaveBeenCalledWith(
+        'analyze',
+        expect.any(Object),
+      );
     });
   });
 });

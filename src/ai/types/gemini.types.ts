@@ -27,3 +27,15 @@ export type GeminiContent = {
 };
 
 export type GenerationConfig = Record<string, unknown>;
+
+export type GeminiEmbeddingResponse = {
+  embedding: {
+    values: number[];
+  };
+};
+
+export type GeminiBatchEmbeddingResponse = {
+  embeddings: Array<{
+    values: number[];
+  }>;
+};

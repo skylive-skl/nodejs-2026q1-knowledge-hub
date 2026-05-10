@@ -26,7 +26,10 @@ export class GeminiService {
     private readonly httpClient: GeminiHttpClient,
   ) {
     this.retryCount = this.readPositiveNumber('AI_RETRY_COUNT', 3);
-    this.retryBaseDelayMs = this.readPositiveNumber('AI_RETRY_BASE_DELAY_MS', 300);
+    this.retryBaseDelayMs = this.readPositiveNumber(
+      'AI_RETRY_BASE_DELAY_MS',
+      300,
+    );
 
     this.logger.log(
       {
@@ -54,8 +57,13 @@ export class GeminiService {
       response_mime_type: 'application/json',
       ...(schema ? { response_schema: schema } : {}),
     };
-    const contents: GeminiContent[] = [{ role: 'user', parts: [{ text: prompt }] }];
-    const { text, tokenUsage } = await this.generate(contents, generationConfig);
+    const contents: GeminiContent[] = [
+      { role: 'user', parts: [{ text: prompt }] },
+    ];
+    const { text, tokenUsage } = await this.generate(
+      contents,
+      generationConfig,
+    );
     let data: T;
     try {
       data = JSON.parse(text) as T;
@@ -71,34 +79,31 @@ export class GeminiService {
     contents: GeminiContent[],
     generationConfig?: GenerationConfig,
   ): Promise<GeminiResult> {
-    return withRetry(
-      () => this.httpClient.call(contents, generationConfig),
-      {
-        retryCount: this.retryCount,
-        retryBaseDelayMs: this.retryBaseDelayMs,
-        isAbort: (err) =>
-          err instanceof GeminiAuthError || err instanceof GeminiRateLimitError,
-        isRetryable: (err) =>
-          err instanceof GeminiUnavailableError ||
-          (err instanceof Error && err.name === 'AbortError'),
-        toFinalError: (err) =>
-          err instanceof GeminiUnavailableError ||
-          err instanceof GeminiRateLimitError ||
-          err instanceof GeminiAuthError
-            ? (err as Error)
-            : new GeminiUnavailableError('AI service network error'),
-        onRetry: (attempt, err) =>
-          this.logger.warn(
-            { attempt, reason: (err as Error).message },
-            'GeminiService',
-          ),
-        onSuccess: (attempt) =>
-          this.logger.log(
-            { model: this.httpClient.modelName, attempt },
-            'GeminiService',
-          ),
-      },
-    );
+    return withRetry(() => this.httpClient.call(contents, generationConfig), {
+      retryCount: this.retryCount,
+      retryBaseDelayMs: this.retryBaseDelayMs,
+      isAbort: (err) =>
+        err instanceof GeminiAuthError || err instanceof GeminiRateLimitError,
+      isRetryable: (err) =>
+        err instanceof GeminiUnavailableError ||
+        (err instanceof Error && err.name === 'AbortError'),
+      toFinalError: (err) =>
+        err instanceof GeminiUnavailableError ||
+        err instanceof GeminiRateLimitError ||
+        err instanceof GeminiAuthError
+          ? (err as Error)
+          : new GeminiUnavailableError('AI service network error'),
+      onRetry: (attempt, err) =>
+        this.logger.warn(
+          { attempt, reason: (err as Error).message },
+          'GeminiService',
+        ),
+      onSuccess: (attempt) =>
+        this.logger.log(
+          { model: this.httpClient.modelName, attempt },
+          'GeminiService',
+        ),
+    });
   }
 
   private readPositiveNumber(key: string, fallback: number): number {

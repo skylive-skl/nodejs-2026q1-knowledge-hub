@@ -189,10 +189,9 @@ describe('GeminiHttpClient', () => {
       makeResponse(200, makeGeminiResponse(JSON.stringify(payload))),
     );
 
-    await client.call(
-      [{ role: 'user', parts: [{ text: 'hello' }] }],
-      { response_mime_type: 'application/json' },
-    );
+    await client.call([{ role: 'user', parts: [{ text: 'hello' }] }], {
+      response_mime_type: 'application/json',
+    });
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body as string);
     expect(body.generationConfig?.response_mime_type).toBe('application/json');
