@@ -6,7 +6,9 @@ import { GeminiRateLimitError } from './errors/gemini-rate-limit.error';
 import { GeminiUnavailableError } from './errors/gemini-unavailable.error';
 import {
   GeminiApiResponse,
+  GeminiBatchEmbeddingResponse,
   GeminiContent,
+  GeminiEmbeddingResponse,
   GeminiResult,
   GenerationConfig,
 } from './types/gemini.types';
@@ -16,6 +18,7 @@ export class GeminiHttpClient {
   private readonly apiKey: string;
   private readonly baseUrl: string;
   private readonly model: string;
+  private readonly embeddingModel: string;
   private readonly timeoutMs: number;
 
   constructor(
@@ -27,6 +30,8 @@ export class GeminiHttpClient {
       this.config.get<string>('GEMINI_API_BASE_URL') ??
       'https://generativelanguage.googleapis.com';
     this.model = this.config.get<string>('GEMINI_MODEL') ?? 'gemini-2.0-flash';
+    this.embeddingModel =
+      this.config.get<string>('GEMINI_EMBEDDING_MODEL') ?? 'text-embedding-004';
     this.timeoutMs = this.readPositiveNumber('AI_HTTP_TIMEOUT_MS', 15000);
 
     if (!this.apiKey.trim()) {
@@ -34,7 +39,12 @@ export class GeminiHttpClient {
     }
 
     this.logger.log(
-      { model: this.model, baseUrl: this.baseUrl, timeoutMs: this.timeoutMs },
+      {
+        model: this.model,
+        embeddingModel: this.embeddingModel,
+        baseUrl: this.baseUrl,
+        timeoutMs: this.timeoutMs,
+      },
       'GeminiHttpClient',
     );
   }
@@ -76,6 +86,105 @@ export class GeminiHttpClient {
       clearTimeout(timerId);
     }
 
+    this.checkResponseErrors(response);
+
+    const data = (await response.json()) as GeminiApiResponse;
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    const usage = data.usageMetadata;
+
+    return {
+      text,
+      tokenUsage: usage
+        ? {
+            prompt: usage.promptTokenCount ?? 0,
+            completion: usage.candidatesTokenCount ?? 0,
+            total: usage.totalTokenCount ?? 0,
+          }
+        : undefined,
+    };
+  }
+
+  async embedContent(text: string): Promise<number[]> {
+    const url = `${this.baseUrl}/v1beta/models/${this.embeddingModel}:embedContent`;
+    const controller = new AbortController();
+    const timerId = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    const body = {
+      model: `models/${this.embeddingModel}`,
+      content: {
+        parts: [{ text }],
+      },
+    };
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': this.apiKey,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (fetchError) {
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        throw new GeminiUnavailableError('AI service request timed out');
+      }
+      throw new GeminiUnavailableError('AI service network error');
+    } finally {
+      clearTimeout(timerId);
+    }
+
+    this.checkResponseErrors(response);
+
+    const data = (await response.json()) as GeminiEmbeddingResponse;
+    return data.embedding?.values ?? [];
+  }
+
+  async batchEmbedContents(texts: string[]): Promise<number[][]> {
+    if (texts.length === 0) return [];
+    
+    const url = `${this.baseUrl}/v1beta/models/${this.embeddingModel}:batchEmbedContents`;
+    const controller = new AbortController();
+    const timerId = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    const body = {
+      requests: texts.map((text) => ({
+        model: `models/${this.embeddingModel}`,
+        content: {
+          parts: [{ text }],
+        },
+      })),
+    };
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': this.apiKey,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (fetchError) {
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        throw new GeminiUnavailableError('AI service request timed out');
+      }
+      throw new GeminiUnavailableError('AI service network error');
+    } finally {
+      clearTimeout(timerId);
+    }
+
+    this.checkResponseErrors(response);
+
+    const data = (await response.json()) as GeminiBatchEmbeddingResponse;
+    return data.embeddings?.map((e) => e.values) ?? [];
+  }
+
+  private checkResponseErrors(response: Response): void {
     if (response.status === 401 || response.status === 403) {
       throw new GeminiAuthError();
     }
@@ -99,21 +208,6 @@ export class GeminiHttpClient {
         `Gemini API returned unexpected status ${response.status}`,
       );
     }
-
-    const data = (await response.json()) as GeminiApiResponse;
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    const usage = data.usageMetadata;
-
-    return {
-      text,
-      tokenUsage: usage
-        ? {
-            prompt: usage.promptTokenCount ?? 0,
-            completion: usage.candidatesTokenCount ?? 0,
-            total: usage.totalTokenCount ?? 0,
-          }
-        : undefined,
-    };
   }
 
   private readPositiveNumber(key: string, fallback: number): number {
