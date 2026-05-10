@@ -33,11 +33,19 @@ describe('RBAC - Users (e2e)', () => {
     adminHeaders = { ...headers, Authorization: adminResult.token };
     adminUserId = adminResult.mockUserId;
 
-    const editorResult = await getUserTokenByRole(request, 'editor', adminHeaders);
+    const editorResult = await getUserTokenByRole(
+      request,
+      'editor',
+      adminHeaders,
+    );
     editorHeaders = { ...headers, Authorization: editorResult.token };
     editorUserId = editorResult.userId;
 
-    const viewerResult = await getUserTokenByRole(request, 'viewer', adminHeaders);
+    const viewerResult = await getUserTokenByRole(
+      request,
+      'viewer',
+      adminHeaders,
+    );
     viewerHeaders = { ...headers, Authorization: viewerResult.token };
     viewerUserId = viewerResult.userId;
   });
@@ -60,9 +68,7 @@ describe('RBAC - Users (e2e)', () => {
     it('should allow GET all users', async () => {
       if (!shouldAuthorizationBeTested) return;
 
-      const response = await request
-        .get(usersRoutes.getAll)
-        .set(viewerHeaders);
+      const response = await request.get(usersRoutes.getAll).set(viewerHeaders);
 
       expect(response.status).toBe(StatusCodes.OK);
     });
@@ -117,9 +123,7 @@ describe('RBAC - Users (e2e)', () => {
     it('should allow GET all users', async () => {
       if (!shouldAuthorizationBeTested) return;
 
-      const response = await request
-        .get(usersRoutes.getAll)
-        .set(editorHeaders);
+      const response = await request.get(usersRoutes.getAll).set(editorHeaders);
 
       expect(response.status).toBe(StatusCodes.OK);
     });

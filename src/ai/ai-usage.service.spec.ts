@@ -40,8 +40,12 @@ describe('AiUsageService', () => {
   });
 
   it('accumulates token usage', () => {
-    service.record('summarize', { tokens: { prompt: 10, completion: 5, total: 15 } });
-    service.record('translate', { tokens: { prompt: 20, completion: 10, total: 30 } });
+    service.record('summarize', {
+      tokens: { prompt: 10, completion: 5, total: 15 },
+    });
+    service.record('translate', {
+      tokens: { prompt: 20, completion: 10, total: 30 },
+    });
 
     const stats = service.getStats();
     expect(stats.tokenUsage.totalPrompt).toBe(30);

@@ -23,7 +23,9 @@ describe('AuthThrottlerGuard', () => {
   it('returns true when throttle is disabled for tests', async () => {
     process.env.DISABLE_THROTTLE_FOR_TESTS = 'true';
 
-    const guard = Object.create(AuthThrottlerGuard.prototype) as AuthThrottlerGuard;
+    const guard = Object.create(
+      AuthThrottlerGuard.prototype,
+    ) as AuthThrottlerGuard;
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
   });
@@ -34,7 +36,9 @@ describe('AuthThrottlerGuard', () => {
       .spyOn(ThrottlerGuard.prototype, 'canActivate')
       .mockResolvedValue(true);
 
-    const guard = Object.create(AuthThrottlerGuard.prototype) as AuthThrottlerGuard;
+    const guard = Object.create(
+      AuthThrottlerGuard.prototype,
+    ) as AuthThrottlerGuard;
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(parentSpy).toHaveBeenCalledWith(context);

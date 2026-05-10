@@ -57,7 +57,9 @@ async function bootstrap() {
     const error = reason instanceof Error ? reason : new Error(String(reason));
 
     const logMethod =
-      event === 'uncaughtException' ? logger.fatal.bind(logger) : logger.error.bind(logger);
+      event === 'uncaughtException'
+        ? logger.fatal.bind(logger)
+        : logger.error.bind(logger);
 
     logMethod(
       {

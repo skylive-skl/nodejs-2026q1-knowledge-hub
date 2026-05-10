@@ -144,7 +144,7 @@ export class GeminiHttpClient {
 
   async batchEmbedContents(texts: string[]): Promise<number[][]> {
     if (texts.length === 0) return [];
-    
+
     const url = `${this.baseUrl}/v1beta/models/${this.embeddingModel}:batchEmbedContents`;
     const controller = new AbortController();
     const timerId = setTimeout(() => controller.abort(), this.timeoutMs);

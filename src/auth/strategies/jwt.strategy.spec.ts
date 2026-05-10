@@ -13,14 +13,18 @@ describe('JwtStrategy', () => {
   });
 
   it('reads JWT secret from config on construction', () => {
-    const strategy = new JwtStrategy(configServiceMock as unknown as ConfigService);
+    const strategy = new JwtStrategy(
+      configServiceMock as unknown as ConfigService,
+    );
 
     expect(strategy).toBeDefined();
     expect(configServiceMock.getOrThrow).toHaveBeenCalledWith('JWT_SECRET');
   });
 
   it('returns payload as is in validate()', () => {
-    const strategy = new JwtStrategy(configServiceMock as unknown as ConfigService);
+    const strategy = new JwtStrategy(
+      configServiceMock as unknown as ConfigService,
+    );
     const payload = {
       userId: 'user-1',
       login: 'john',

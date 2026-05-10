@@ -75,7 +75,10 @@ describe('GeminiService', () => {
     httpClient.call.mockResolvedValueOnce(SUCCESS_RESULT);
     const history = [
       { role: 'user' as const, parts: [{ text: 'hi' }] as [{ text: string }] },
-      { role: 'model' as const, parts: [{ text: 'hello' }] as [{ text: string }] },
+      {
+        role: 'model' as const,
+        parts: [{ text: 'hello' }] as [{ text: string }],
+      },
     ];
 
     await service.generateWithHistory(history);
@@ -136,7 +139,11 @@ describe('GeminiService', () => {
 
   describe('generateJson', () => {
     it('returns parsed data and token usage on success', async () => {
-      const payload = { analysis: 'ok', suggestions: ['tip'], severity: 'info' };
+      const payload = {
+        analysis: 'ok',
+        suggestions: ['tip'],
+        severity: 'info',
+      };
       httpClient.call.mockResolvedValueOnce({
         text: JSON.stringify(payload),
         tokenUsage: { prompt: 10, completion: 5, total: 15 },
@@ -145,11 +152,18 @@ describe('GeminiService', () => {
       const result = await service.generateJson<typeof payload>('prompt');
 
       expect(result.data).toEqual(payload);
-      expect(result.tokenUsage).toEqual({ prompt: 10, completion: 5, total: 15 });
+      expect(result.tokenUsage).toEqual({
+        prompt: 10,
+        completion: 5,
+        total: 15,
+      });
     });
 
     it('passes response_mime_type application/json in generationConfig', async () => {
-      httpClient.call.mockResolvedValueOnce({ text: '{}', tokenUsage: undefined });
+      httpClient.call.mockResolvedValueOnce({
+        text: '{}',
+        tokenUsage: undefined,
+      });
 
       await service.generateJson('prompt');
 
@@ -158,8 +172,14 @@ describe('GeminiService', () => {
     });
 
     it('passes response_schema when schema is provided', async () => {
-      httpClient.call.mockResolvedValueOnce({ text: '{}', tokenUsage: undefined });
-      const schema = { type: 'object', properties: { analysis: { type: 'string' } } };
+      httpClient.call.mockResolvedValueOnce({
+        text: '{}',
+        tokenUsage: undefined,
+      });
+      const schema = {
+        type: 'object',
+        properties: { analysis: { type: 'string' } },
+      };
 
       await service.generateJson('prompt', schema);
 
@@ -168,7 +188,10 @@ describe('GeminiService', () => {
     });
 
     it('throws GeminiUnavailableError when httpClient returns invalid JSON text', async () => {
-      httpClient.call.mockResolvedValueOnce({ text: 'not-json', tokenUsage: undefined });
+      httpClient.call.mockResolvedValueOnce({
+        text: 'not-json',
+        tokenUsage: undefined,
+      });
 
       await expect(service.generateJson('prompt')).rejects.toBeInstanceOf(
         GeminiUnavailableError,
