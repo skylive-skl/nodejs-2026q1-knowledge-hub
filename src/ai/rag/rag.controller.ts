@@ -8,12 +8,26 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { RagService } from './rag.service';
 
 interface ReindexRequest {
   onlyPublished?: boolean;
   articleIds?: string[];
+}
+
+interface RagSearchRequest {
+  query: string;
+  limit?: number;
+  articleStatus?: 'draft' | 'published' | 'archived';
+  categoryId?: string;
+  tags?: string[];
+}
+
+interface RagChatRequest {
+  question: string;
+  conversationId?: string;
 }
 
 @Controller('ai/rag')
@@ -31,14 +45,25 @@ export class RagController {
 
   @Post('search')
   @HttpCode(HttpStatus.OK)
-  async search(@Body() body: any) {
-    return { results: [] };
+  async search(@Body() body: RagSearchRequest) {
+    if (!body?.query) {
+      throw new BadRequestException('query is missing');
+    }
+    return this.ragService.search(body.query, {
+      limit: body.limit,
+      articleStatus: body.articleStatus,
+      categoryId: body.categoryId,
+      tags: body.tags,
+    });
   }
 
   @Post('chat')
   @HttpCode(HttpStatus.OK)
-  async chat(@Body() body: any) {
-    return { answer: 'Scaffold answer', sources: [], conversationId: 'scaffold' };
+  async chat(@Body() body: RagChatRequest) {
+    if (!body?.question) {
+      throw new BadRequestException('question is missing');
+    }
+    return this.ragService.chat(body.question, body.conversationId);
   }
 
   @Delete('index/articles/:articleId')
@@ -52,6 +77,6 @@ export class RagController {
 
   @Get('chat/:conversationId/history')
   async getChatHistory(@Param('conversationId') conversationId: string) {
-    return [];
+    return this.ragService.getChatHistory(conversationId);
   }
 }

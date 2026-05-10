@@ -4,6 +4,7 @@ import { QdrantClient } from '@qdrant/js-client-rest';
 import { AppLoggerService } from 'src/common/logger/app-logger.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { GeminiHttpClient } from '../gemini-http.client';
+import { GeminiContent } from '../types/gemini.types';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -12,6 +13,8 @@ export class RagService implements OnModuleInit {
   private readonly collectionName: string;
   public readonly chunkSize: number;
   public readonly chunkOverlap: number;
+  private chatMemory = new Map<string, GeminiContent[]>();
+  private readonly maxMessages: number;
 
   constructor(
     private readonly config: ConfigService,
@@ -27,6 +30,9 @@ export class RagService implements OnModuleInit {
     this.chunkSize = sizeEnv ? Number(sizeEnv) : 800;
     const overlapEnv = this.config.get('RAG_CHUNK_OVERLAP');
     this.chunkOverlap = overlapEnv ? Number(overlapEnv) : 200;
+
+    const maxMsgsEnv = this.config.get('RAG_CONVERSATION_MAX_MESSAGES');
+    this.maxMessages = maxMsgsEnv ? Number(maxMsgsEnv) : 20;
 
     const url =
       this.config.get<string>('RAG_VECTOR_DB_URL') ?? 'http://localhost:6333';
@@ -114,7 +120,10 @@ export class RagService implements OnModuleInit {
     }
   }
 
-  async indexArticles(options?: { onlyPublished?: boolean; articleIds?: string[] }) {
+  async indexArticles(options?: {
+    onlyPublished?: boolean;
+    articleIds?: string[];
+  }) {
     const onlyPublished = options?.onlyPublished ?? true;
     const articleIds = options?.articleIds;
 
@@ -147,8 +156,9 @@ export class RagService implements OnModuleInit {
       const batchSize = 50;
       for (let i = 0; i < chunks.length; i += batchSize) {
         const chunkBatch = chunks.slice(i, i + batchSize);
-        const embeddings = await this.geminiClient.batchEmbedContents(chunkBatch);
-        
+        const embeddings =
+          await this.geminiClient.batchEmbedContents(chunkBatch);
+
         for (let j = 0; j < chunkBatch.length; j++) {
           points.push({
             id: uuidv4(),
@@ -179,5 +189,115 @@ export class RagService implements OnModuleInit {
       indexedChunks: totalIndexedChunks,
       vectorCollection: this.collectionName,
     };
+  }
+
+  async search(
+    query: string,
+    options?: {
+      limit?: number;
+      articleStatus?: string;
+      categoryId?: string;
+      tags?: string[];
+    },
+  ) {
+    if (!query) throw new Error('Query is missing');
+
+    const limit = options?.limit ?? 5;
+    const finalLimit = Math.min(limit, 20);
+
+    const queryEmbedding = await this.geminiClient.embedContent(query);
+
+    const mustFilters: any[] = [];
+    if (options?.articleStatus) {
+      mustFilters.push({
+        key: 'status',
+        match: { value: options.articleStatus },
+      });
+    }
+    if (options?.categoryId) {
+      mustFilters.push({
+        key: 'categoryId',
+        match: { value: options.categoryId },
+      });
+    }
+    if (options?.tags && options.tags.length > 0) {
+      mustFilters.push({ key: 'tags', match: { any: options.tags } });
+    }
+
+    const filter = mustFilters.length > 0 ? { must: mustFilters } : undefined;
+
+    const searchResult = await this.qdrantClient.search(this.collectionName, {
+      vector: queryEmbedding,
+      limit: finalLimit,
+      with_payload: true,
+      filter: filter,
+    });
+
+    return {
+      results: searchResult.map((res: any) => ({
+        articleId: res.payload.articleId,
+        articleTitle: res.payload.articleTitle,
+        chunk: res.payload.chunk,
+        similarity: res.score,
+      })),
+    };
+  }
+
+  async chat(question: string, conversationId?: string) {
+    if (!question) throw new Error('Question is missing');
+
+    const id = conversationId || uuidv4();
+    const history = this.chatMemory.get(id) ?? [];
+
+    const searchResponse = await this.search(question, { limit: 5 });
+    const sources = searchResponse.results.map((res) => ({
+      articleId: res.articleId,
+      articleTitle: res.articleTitle,
+      relevantChunk: res.chunk,
+    }));
+
+    let context = '';
+    if (sources.length > 0) {
+      context = sources
+        .map(
+          (s, idx) =>
+            `[${idx + 1}] Title: ${s.articleTitle}\nContent: ${s.relevantChunk}`,
+        )
+        .join('\n\n');
+    } else {
+      context = 'No relevant context found in the Knowledge Hub.';
+    }
+
+    const promptText = `You are a helpful assistant for the Knowledge Hub. Answer the user's question using ONLY the provided context. If the answer is not contained in the context, say so.\n\nContext:\n${context}\n\nQuestion: ${question}`;
+
+    const apiHistory: GeminiContent[] = [
+      ...history,
+      { role: 'user', parts: [{ text: promptText }] },
+    ];
+
+    const geminiResult = await this.geminiClient.call(apiHistory);
+    const answer = geminiResult.text;
+
+    const savedHistory: GeminiContent[] = [
+      ...history,
+      { role: 'user', parts: [{ text: question }] },
+      { role: 'model', parts: [{ text: answer }] },
+    ];
+
+    if (savedHistory.length > this.maxMessages) {
+      savedHistory.splice(0, savedHistory.length - this.maxMessages);
+    }
+
+    this.chatMemory.set(id, savedHistory);
+
+    return {
+      answer,
+      sources,
+      conversationId: id,
+    };
+  }
+
+  getChatHistory(conversationId: string) {
+    return this.chatMemory.get(conversationId) ?? [];
   }
 }
