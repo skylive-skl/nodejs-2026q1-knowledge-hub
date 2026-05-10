@@ -6,6 +6,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { GeminiHttpClient } from '../gemini-http.client';
 import { GeminiContent } from '../types/gemini.types';
 import { v4 as uuidv4 } from 'uuid';
+import { ServiceUnavailableException } from '@nestjs/common';
 
 @Injectable()
 export class RagService implements OnModuleInit {
@@ -116,7 +117,7 @@ export class RagService implements OnModuleInit {
         (error as Error).stack,
         'RagService',
       );
-      return false;
+      throw new ServiceUnavailableException('Vector database is unavailable');
     }
   }
 
@@ -176,10 +177,19 @@ export class RagService implements OnModuleInit {
         }
       }
 
-      await this.qdrantClient.upsert(this.collectionName, {
-        wait: true,
-        points: points,
-      });
+      try {
+        await this.qdrantClient.upsert(this.collectionName, {
+          wait: true,
+          points: points,
+        });
+      } catch (error) {
+        this.logger.error(
+          `Failed to upsert points to Qdrant: ${(error as Error).message}`,
+          (error as Error).stack,
+          'RagService',
+        );
+        throw new ServiceUnavailableException('Vector database is unavailable');
+      }
 
       totalIndexedChunks += chunks.length;
     }
@@ -226,21 +236,30 @@ export class RagService implements OnModuleInit {
 
     const filter = mustFilters.length > 0 ? { must: mustFilters } : undefined;
 
-    const searchResult = await this.qdrantClient.search(this.collectionName, {
-      vector: queryEmbedding,
-      limit: finalLimit,
-      with_payload: true,
-      filter: filter,
-    });
+    try {
+      const searchResult = await this.qdrantClient.search(this.collectionName, {
+        vector: queryEmbedding,
+        limit: finalLimit,
+        with_payload: true,
+        filter: filter,
+      });
 
-    return {
-      results: searchResult.map((res: any) => ({
-        articleId: res.payload.articleId,
-        articleTitle: res.payload.articleTitle,
-        chunk: res.payload.chunk,
-        similarity: res.score,
-      })),
-    };
+      return {
+        results: searchResult.map((res: any) => ({
+          articleId: res.payload.articleId,
+          articleTitle: res.payload.articleTitle,
+          chunk: res.payload.chunk,
+          similarity: res.score,
+        })),
+      };
+    } catch (error) {
+      this.logger.error(
+        `Qdrant search failed: ${(error as Error).message}`,
+        (error as Error).stack,
+        'RagService',
+      );
+      throw new ServiceUnavailableException('Vector database is unavailable');
+    }
   }
 
   async chat(question: string, conversationId?: string) {
